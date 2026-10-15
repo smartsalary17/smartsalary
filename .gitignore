@@ -55,5 +55,8 @@ node_modules/
 # dotenv environment variables file
 .env
 
+# Local database backups (may contain employee personal data)
+backups/
+
 # dataconnect generated files
 .dataconnect

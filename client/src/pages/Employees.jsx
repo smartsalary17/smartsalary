@@ -226,6 +226,7 @@ const Employees = () => {
 
         setAssetMeta({});
         setPhotoUrl('');
+        setAssetError('');
 
         if (!selectedEmployeeId) {
             setAssetLoading(false);
@@ -241,18 +242,22 @@ const Employees = () => {
                 setAssetMeta(nextMeta);
 
                 if (nextMeta.photo) {
-                    const photoResponse = await axios.get(
-                        `${API_BASE}/api/employees/${encodeURIComponent(selectedEmployeeId)}/assets/photo`,
-                        { responseType: 'blob' }
-                    );
-                    if (!isActive) return;
-                    objectUrl = URL.createObjectURL(photoResponse.data);
-                    setPhotoUrl(objectUrl);
+                    try {
+                        const photoResponse = await axios.get(
+                            `${API_BASE}/api/employees/${encodeURIComponent(selectedEmployeeId)}/assets/photo`,
+                            { responseType: 'blob' }
+                        );
+                        if (!isActive) return;
+                        objectUrl = URL.createObjectURL(photoResponse.data);
+                        setPhotoUrl(objectUrl);
+                    } catch (photoError) {
+                        if (isActive) console.error('Unable to load employee photo:', photoError);
+                    }
                 }
             } catch (error) {
                 if (isActive) {
                     console.error('Unable to load employee documents:', error);
-                    setAssetError('Documents could not be loaded right now.');
+                    setAssetError(error?.response?.data?.error || 'Documents could not be loaded right now.');
                 }
             } finally {
                 if (isActive) setAssetLoading(false);
