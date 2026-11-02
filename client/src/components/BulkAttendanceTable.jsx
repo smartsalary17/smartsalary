@@ -73,16 +73,24 @@ const calculateWorkTime = (inTime, outTime) => {
     return `${String(Math.floor(duration / 60)).padStart(2, '0')}:${String(duration % 60).padStart(2, '0')}`;
 };
 
+const getAttendanceStatus = (checkIn, scheduledCheckIn, graceMinutes) => {
+    const [checkInHours, checkInMinutes] = checkIn.split(':').map(Number);
+    const [scheduledHours, scheduledMinutes] = scheduledCheckIn.split(':').map(Number);
+    const actualMinutes = checkInHours * 60 + checkInMinutes;
+    const graceLimit = scheduledHours * 60 + scheduledMinutes + graceMinutes;
+    return actualMinutes > graceLimit ? 'late' : 'present';
+};
+
 const isCocoPresent = (record) => {
     const status = String(record.status || record.attendanceStatus || '').trim().toLowerCase();
     const weekOff = String(record.weekOff || record.weekoff || record.week_off || '').trim().toLowerCase();
-    const hasPresentStatus = !status || ['present', 'p', 'working', 'worked'].includes(status);
+    const hasPresentStatus = !status || ['present', 'p', 'working', 'worked', 'late', 'half-day', 'halfday'].includes(status);
     const isWeekOff = ['yes', 'true', '1', 'week off', 'weekoff', 'weekly off', 'off'].includes(weekOff);
     return hasPresentStatus && !isWeekOff;
 };
 
 const BulkAttendanceTable = ({ onOpenReport }) => {
-    const { employees, attendance, saveBulkAttendance } = useWorkforce();
+    const { employees, attendance, rules, saveBulkAttendance } = useWorkforce();
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [isSyncing, setIsSyncing] = useState(false);
     const [isCocoSyncing, setIsCocoSyncing] = useState(false);
@@ -259,16 +267,24 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
     };
 
     const handleCocoSync = () => {
-        const weekOffEmployees = tempBulk
-            .filter(employee => employee.status?.trim().toLowerCase() === 'weekoff')
-            .map(employee => ({ id: employee.id, name: employee.name || 'Employee' }));
+        const syncableStatuses = new Set(['weekoff', 'late', 'absent']);
+        const eligibleEmployees = tempBulk
+            .filter(employee => syncableStatuses.has(employee.status?.trim().toLowerCase()))
+            .map(employee => {
+                const details = employees.find(item => item.id === employee.id);
+                return {
+                    id: employee.id,
+                    name: employee.name || 'Employee',
+                    checkin: details?.checkin || '09:00'
+                };
+            });
 
         setDialog({
             mode: 'confirm',
             title: 'Confirm COCO sync',
             date: selectedDate,
-            employees: weekOffEmployees,
-            message: 'COCO attendance will be checked for these Week Off employees.'
+            employees: eligibleEmployees,
+            message: 'COCO attendance will be checked for Week Off, Late, and Absent employees.'
         });
     };
 
@@ -276,7 +292,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
         if (dialog?.mode !== 'confirm') return;
 
         const confirmation = dialog;
-        const { date, employees: weekOffEmployees } = confirmation;
+        const { date, employees: eligibleEmployees } = confirmation;
         setDialog({ ...confirmation, mode: 'loading', title: 'Syncing COCO attendance' });
         setIsCocoSyncing(true);
         try {
@@ -309,12 +325,23 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                     .filter(([employeeId]) => employeeId)
             );
 
-            const updates = weekOffEmployees
+            const graceMinutes = Number.isFinite(Number(rules?.grace))
+                ? Math.max(0, Number(rules.grace))
+                : 10;
+
+            const updates = eligibleEmployees
                 .map(employee => {
                     const record = cocoByEmployeeId.get(String(employee.id).trim().toLowerCase());
                     const time = record && isCocoPresent(record) ? getCocoTime(record, 'checkIns', 'checkIn') : '';
                     const outTime = record && isCocoPresent(record) ? getCocoTime(record, 'checkOuts', 'checkOut', 'last') : '';
-                    return { ...employee, time, outTime, workTime: calculateWorkTime(time, outTime) };
+                    const scheduledCheckIn = normalizeTime(employee.checkin) || '09:00';
+                    return {
+                        ...employee,
+                        time,
+                        outTime,
+                        status: time ? getAttendanceStatus(time, scheduledCheckIn, graceMinutes) : '',
+                        workTime: calculateWorkTime(time, outTime)
+                    };
                 })
                 .filter(update => update.time);
 
@@ -324,7 +351,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                     title: 'No attendance updated',
                     date,
                     employees: [],
-                    message: 'No valid COCO Present records matched these Week Off employees for this date. Existing attendance was not changed.'
+                    message: 'No valid COCO attendance records matched these Week Off, Late, or Absent employees for this date. Existing attendance was not changed.'
                 });
                 return;
             }
@@ -337,7 +364,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                     entries: currentEntries.map(employee => {
                         const update = updatesByEmployeeId.get(employee.id);
                         return update
-                            ? { ...employee, status: 'present', time: update.time, outTime: update.outTime, workTime: update.workTime, isBiometric: false, isCoco: true }
+                            ? { ...employee, status: update.status, time: update.time, outTime: update.outTime, workTime: update.workTime, isBiometric: false, isCoco: true }
                             : employee;
                     })
                 };
@@ -349,7 +376,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                 title: 'COCO sync complete',
                 date,
                 employees: updates.map(({ id, name }) => ({ id, name })),
-                message: `Updated ${updates.length} Week Off record${updates.length === 1 ? '' : 's'} from COCO. Review the table and click 'Save All Attendance' to save the changes.`
+                message: `Updated ${updates.length} Week Off, Late, or Absent record${updates.length === 1 ? '' : 's'} from COCO. Review the table and click 'Save All Attendance' to save the changes.`
             });
         } catch (e) {
             console.error('Error syncing COCO attendance data:', e);
