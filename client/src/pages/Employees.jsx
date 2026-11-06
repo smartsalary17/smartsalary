@@ -33,7 +33,7 @@ const EMPTY_FORM = {
     employmentType: 'Full-time',
     joinDate: '',
     salary: '',
-    checkin: '09:00',
+    checkin: '',
     weekoffs: []
 };
 
@@ -132,7 +132,7 @@ const DocumentCard = ({
                         {file.name || file.fileName} <span>· {formatFileSize(file.size)}</span>
                     </p>
                 ) : (
-                    <p>{item.required ? 'Required document is missing' : 'No document added'}</p>
+                    <p>{showRequiredMark && item.required ? 'Required document is missing' : 'No document added'}</p>
                 )}
                 {error && <small className="ed-field-error">{error}</small>}
             </div>
@@ -312,13 +312,12 @@ const selectEmployee = (employeeId) => {
 };
 
    const startAddEmployee = () => {
-    const generatedId = `E${Date.now()}`;
 
     setEditingEmployeeId(null);
     setSelectedEmployeeId('');
     setFormData({
         ...EMPTY_FORM,
-        id: generatedId,
+        id: '',
         weekoffs: []
     });
     setFormError('');
@@ -338,7 +337,7 @@ const selectEmployee = (employeeId) => {
             ...EMPTY_FORM,
             ...selectedEmployee,
             salary: selectedEmployee.salary ?? '',
-            checkin: selectedEmployee.checkin || '09:00',
+            checkin: selectedEmployee.checkin || '',
             employmentType: selectedEmployee.employmentType || 'Full-time',
             weekoffs: selectedEmployee.weekoffs || []
         });
@@ -466,7 +465,7 @@ const selectEmployee = (employeeId) => {
         }
     };
 const handleRemoveAsset = async (type) => {
-    if (!window.confirm(`Remove ${DOCUMENT_TYPES.find(item => item.type === type)?.label}?`)) return;
+    if (!window.confirm(`Remove ${type === 'photo' ? 'Profile Photo' : DOCUMENT_TYPES.find(item => item.type === type)?.label}?`)) return;
 
     if (pendingAssets[type]) {
         setPendingAssets(previous => {
@@ -480,6 +479,10 @@ const handleRemoveAsset = async (type) => {
             delete next[type];
             return next;
         });
+
+        if (type === 'photo') {
+            setPendingPhotoUrl('');
+        }
 
         return;
     }
@@ -495,6 +498,10 @@ const handleRemoveAsset = async (type) => {
         );
 
         setAssetVersion(version => version + 1);
+        
+        if (type === 'photo') {
+            setPhotoUrl('');
+        }
     } catch (error) {
         console.error('Employee document removal failed:', error);
         setAssetError(error?.response?.data?.error || 'The document could not be removed.');
@@ -502,6 +509,7 @@ const handleRemoveAsset = async (type) => {
         setUploadingType('');
     }
 };
+
     const focusField = (field) => {
         requestAnimationFrame(() => {
             document.querySelector(`[data-field="${field}"]`)?.focus();
@@ -519,8 +527,14 @@ const handleRemoveAsset = async (type) => {
         if (formData.salary === '' || formData.salary === null) {
             errors.salary = 'Basic salary is required.';
         }
+        if (!formData.id || !formData.id.trim()) {
+            errors.id = 'Employee ID is required.';
+        }
+        if (!formData.checkin) {
+    errors.checkin = 'Standard check-in time is required.';
+}
 
-        if (!editingEmployeeId) {
+        if (editingEmployeeId) { 
             DOCUMENT_TYPES.forEach(documentType => {
                 if (
                     documentType.required &&
@@ -637,7 +651,7 @@ const handleRemoveAsset = async (type) => {
                         busy={uploadingType === item.type || saving}
                         error={fieldErrors[item.type]}
                         allowUpload={allowUpload}
-                        showRequiredMark={mode === 'new' || mode === 'edit'}
+                        showRequiredMark={mode === 'edit'}
                         onPick={mode === 'new' ? handleFormAssetPick : handleDirectAssetUpload}
                         onDownload={handleDownload}
                         onRemove={handleRemoveAsset}
@@ -780,26 +794,43 @@ const handleRemoveAsset = async (type) => {
                     <section className="ed-document-section">
                         <div className="ed-section-title"><UserRound size={19} /><div><h3>Personal details</h3><p>Identity and contact information</p></div></div>
                         <div className="ed-personal-layout">
-                            <div className="ed-photo-editor">
-                                {renderPhoto('ed-profile-photo')}
-                                <input
-                                    id="employee-form-photo"
-                                    className="ed-hidden-input"
-                                    type="file"
-                                    accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                                    onChange={(event) => {
-                                        const file = event.target.files?.[0];
-                                        if (file) handleFormAssetPick('photo', file);
-                                        event.target.value = '';
-                                    }}
-                                />
-                                <label htmlFor="employee-form-photo" className="ed-photo-button"><Camera size={16} /> {photoUrl || pendingPhotoUrl ? 'Change photo' : 'Add photo'}</label>
-                                <small>JPG, PNG or WEBP · Max 5 MB</small>
-                            </div>
+<div className="ed-photo-editor">
+    <div className="ed-photo-wrapper" style={{ position: 'relative' }}>
+        {renderPhoto('ed-profile-photo')}
+        
+        {(photoUrl || pendingPhotoUrl) && (
+            <button
+                type="button"
+                className="ed-remove-photo-btn"
+                onClick={() => handleRemoveAsset('photo')}
+                title="Remove photo"
+            >
+                <X size={12} strokeWidth={3} />
+            </button>
+        )}
+    </div>
+
+    <input
+        id="employee-form-photo"
+        className="ed-hidden-input"
+        type="file"
+        accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+        onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) handleFormAssetPick('photo', file);
+            event.target.value = '';
+        }}
+    />
+    <label htmlFor="employee-form-photo" className="ed-photo-button">
+        <Camera size={16} /> {photoUrl || pendingPhotoUrl ? 'Change photo' : 'Add photo'}
+    </label>
+    <small>JPG, PNG or WEBP · Max 5 MB</small>
+</div>
+
                             <div className="ed-form-grid">
                                 <FormField label="Full name" required error={fieldErrors.name} field="name"><input data-field="name" value={formData.name} onChange={(event) => updateForm('name', event.target.value)} placeholder="Employee full name" /></FormField>
                                 <FormField label="Phone number" error={fieldErrors.phone} field="phone"><input data-field="phone" type="tel" value={formData.phone} onChange={(event) => updateForm('phone', event.target.value)} placeholder="+91 98765 43210" /></FormField>
-                                <FormField label="Email address" error={fieldErrors.email} field="email"><input data-field="email" type="email" value={formData.email} onChange={(event) => updateForm('email', event.target.value)} placeholder="name@company.com" /></FormField>
+                                {/* <FormField label="Email address" error={fieldErrors.email} field="email"><input data-field="email" type="email" value={formData.email} onChange={(event) => updateForm('email', event.target.value)} placeholder="name@company.com" /></FormField> */}
                                 <FormField label="Date of birth" error={fieldErrors.dob} field="dob"><input data-field="dob" type="date" value={formData.dob} onChange={(event) => updateForm('dob', event.target.value)} /></FormField>
                                 <FormField label="Residential address" className="wide" error={fieldErrors.address} field="address"><textarea data-field="address" value={formData.address} onChange={(event) => updateForm('address', event.target.value)} placeholder="Full residential address" rows="3" /></FormField>
                             </div>
@@ -819,9 +850,15 @@ const handleRemoveAsset = async (type) => {
                     <section className="ed-document-section">
                         <div className="ed-section-title"><BriefcaseBusiness size={19} /><div><h3>Work details</h3><p>Employment, payroll and attendance settings</p></div></div>
                         <div className="ed-form-grid three-col">
-                            <FormField label="Employee ID">
-                                <input value={editingEmployeeId || formData.id} onChange={(event) => updateForm('id', event.target.value)} placeholder="Auto-generated if blank" disabled={Boolean(editingEmployeeId)} />
-                            </FormField>
+                            <FormField label="Employee ID" required error={fieldErrors.id}>
+                                <input 
+        data-field="id" 
+        value={editingEmployeeId || formData.id} 
+        onChange={(event) => updateForm('id', event.target.value)} 
+        placeholder="Enter Employee ID" 
+        disabled={Boolean(editingEmployeeId)} 
+    />
+    </FormField>
                             <FormField label="Designation"><input value={formData.role} onChange={(event) => updateForm('role', event.target.value)} placeholder="e.g. Accountant" /></FormField>
                             <FormField label="Department"><input value={formData.dept} onChange={(event) => updateForm('dept', event.target.value)} placeholder="e.g. Finance" /></FormField>
                             <FormField label="Employment type">
@@ -831,7 +868,9 @@ const handleRemoveAsset = async (type) => {
                             </FormField>
                             <FormField label="Joining date"><input type="date" value={formData.joinDate} onChange={(event) => updateForm('joinDate', event.target.value)} /></FormField>
                             <FormField label="Basic salary (₹/month)" required error={fieldErrors.salary}><input data-field="salary" type="number" min="0" step="0.01" value={formData.salary} onChange={(event) => updateForm('salary', event.target.value)} placeholder="30000" /></FormField>
-                            <FormField label="Standard check-in"><input type="time" value={formData.checkin} onChange={(event) => updateForm('checkin', event.target.value)} /></FormField>
+                            <FormField label="Standard check-in" required error={fieldErrors.checkin}>
+    <input data-field="checkin" type="time" value={formData.checkin} onChange={(event) => updateForm('checkin', event.target.value)} />
+</FormField>
                             <div className="ed-form-field ed-weekoff-field">
                                 <span>Week-off days</span>
                                 <div className="ed-weekoff-list">
@@ -902,7 +941,7 @@ const handleRemoveAsset = async (type) => {
                         <div className="ed-detail-grid">
                             <DetailItem label="Full name" value={selectedEmployee.name} />
                             <DetailItem label="Phone number" value={selectedEmployee.phone} />
-                            <DetailItem label="Email address" value={selectedEmployee.email} />
+                            {/* <DetailItem label="Email address" value={selectedEmployee.email} /> */}
                             <DetailItem label="Date of birth" value={selectedEmployee.dob} />
                             <DetailItem label="Residential address" value={selectedEmployee.address} wide />
                         </div>
