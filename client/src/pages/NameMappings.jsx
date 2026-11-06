@@ -1,8 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Loader2, Pencil, Save, XCircle } from 'lucide-react';
 import { API_BASE } from '../context/workforceShared';
 import ConfirmModal from '../components/ConfirmModal';
-import { Pencil, Save, XCircle } from 'lucide-react';
 
 const NameMappings = () => {
     const [mappings, setMappings] = useState([]);
@@ -130,22 +129,33 @@ const NameMappings = () => {
                     <table>
                         <thead><tr><th>Employee</th><th>Aliases</th></tr></thead>
                         <tbody>
-                            {mappings.map(m => (
+                            {mappings.map(m => {
+                                const emp = employees.find(e => String(e.id) === String(m.empId));
+                                const displayName = m.employeeName || emp?.name || 'Unknown';
+                                
+                                return (
                                 <tr key={m.empId}>
-                                    <td><div><strong style={{ color: 'var(--primary)' }}>{m.empId}</strong></div><div style={{ fontSize: '0.85rem' }}>{m.employeeName}</div></td>
+                                    <td>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <strong style={{ color: 'var(--primary)' }}>{m.empId}</strong>
+                                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{displayName}</span>
+                                        </div>
+                                    </td>
                                     <td>
                                         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                                             {m.aliases.map(alias => {
                                                 const isEditing = editingAlias && editingAlias.empId === m.empId && editingAlias.oldAlias === alias;
+                                                
                                                 if (isEditing) {
                                                     return (
-                                                        <div key={alias} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                            <input type="text" value={editAliasValue} onChange={(e) => setEditAliasValue(e.target.value)} style={{ padding: '2px 8px', fontSize: '0.8rem', width: '120px', height: '24px' }} autoFocus />
-                                                            <button onClick={() => saveEditedAlias(m.empId)} style={{ background: 'var(--success)', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', cursor: 'pointer', width: 'auto' }}><Save size={12} /></button>
-                                                            <button onClick={() => setEditingAlias(null)} style={{ background: 'var(--danger)', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', cursor: 'pointer', width: 'auto' }}><XCircle size={12} /></button>
+                                                        <div key={alias} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'var(--input-bg)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                                                            <input type="text" value={editAliasValue} onChange={(e) => setEditAliasValue(e.target.value)} style={{ padding: '4px 8px', fontSize: '0.8rem', width: '150px', height: '28px', background: 'transparent', border: 'none', color: 'var(--text-primary)' }} autoFocus />
+                                                            <button onClick={() => saveEditedAlias(m.empId)} style={{ background: 'var(--success)', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', width: 'auto', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}><Save size={14} /> Save</button>
+                                                            <button onClick={() => setEditingAlias(null)} style={{ background: 'var(--danger)', color: 'white', border: 'none', borderRadius: '4px', padding: '4px 8px', cursor: 'pointer', width: 'auto', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}><XCircle size={14} /> Cancel</button>
                                                         </div>
                                                     );
                                                 }
+                                                
                                                 return (
                                                     <span key={alias} className="pill p-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
                                                         {alias}
@@ -157,7 +167,7 @@ const NameMappings = () => {
                                         </div>
                                     </td>
                                 </tr>
-                            ))}
+                            )})}
                             {mappings.length === 0 && <tr><td colSpan={2} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No mappings yet. Add one above.</td></tr>}
                         </tbody>
                     </table>

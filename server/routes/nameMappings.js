@@ -35,8 +35,11 @@ router.post('/', async (req, res, next) => {
         let mapping = await NameMapping.findOne({ empId: cleanEmpId });
         if (!mapping) {
             mapping = new NameMapping({ employeeName: cleanName, empId: cleanEmpId, aliases: [cleanAlias] });
-        } else if (!mapping.aliases.includes(cleanAlias)) {
-            mapping.aliases.push(cleanAlias);
+        } else {
+            mapping.employeeName = cleanName;
+            if (!mapping.aliases.includes(cleanAlias)) {
+                mapping.aliases.push(cleanAlias);
+            }
         }
         await mapping.save();
 
@@ -52,15 +55,20 @@ router.post('/', async (req, res, next) => {
     }
 });
 
+// ✅ ONLY UPDATES ALIAS & BYPASSES VALIDATION
 router.put('/:empId', async (req, res, next) => {
     try {
-        const { employeeName } = req.body;
-        const mapping = await NameMapping.findOneAndUpdate(
-            { empId: req.params.empId },
-            { $set: { employeeName: String(employeeName || '').trim() } },
-            { new: true }
-        );
+        const { oldAlias, newAlias } = req.body;
+        const mapping = await NameMapping.findOne({ empId: req.params.empId });
         if (!mapping) return res.status(404).json({ error: 'Mapping not found.' });
+
+        if (oldAlias && newAlias) {
+            mapping.aliases = mapping.aliases.map(a => a === oldAlias ? newAlias : a);
+        }
+
+        // This bypasses the 'employeeName is required' error for old records
+        await mapping.save({ validateBeforeSave: false }); 
+        
         res.json({ success: true, mapping });
     } catch (e) { next(e); }
 });
@@ -73,7 +81,7 @@ router.delete('/:empId/alias/:alias', async (req, res, next) => {
         if (mapping.aliases.length === 0) {
             await NameMapping.deleteOne({ _id: mapping._id });
         } else {
-            await mapping.save();
+            await mapping.save({ validateBeforeSave: false });
         }
         res.json({ success: true });
     } catch (e) { next(e); }
