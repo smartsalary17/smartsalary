@@ -74,17 +74,16 @@ const PenaltyReport = () => {
                             <div className="stat-value" style={{ color: 'var(--danger)' }}>₹{totalPenalty.toLocaleString('en-IN')}</div>
                         </div>
                         <table>
-                            <thead><tr><th>Employee</th><th style={{ textAlign: 'center' }}>Count</th><th style={{ textAlign: 'right' }}>Total</th><th>Reasons</th></tr></thead>
+                            <thead><tr><th>Employee</th><th style={{ textAlign: 'center' }}>Count</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
                             <tbody>
                                 {visibleOverall.map((r, i) => (
                                     <tr key={i}>
                                         <td><strong>{r.name}</strong></td>
                                         <td style={{ textAlign: 'center' }}>{r.count}</td>
                                         <td style={{ textAlign: 'right', color: 'var(--danger)', fontWeight: 700 }}>₹{r.total.toLocaleString('en-IN')}</td>
-                                        <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{r.reasons || '—'}</td>
                                     </tr>
                                 ))}
-                                {visibleOverall.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No penalties</td></tr>}
+                                {visibleOverall.length === 0 && <tr><td colSpan={3} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No penalties</td></tr>}
                             </tbody>
                         </table>
                     </>
@@ -110,3 +109,4 @@ const PenaltyReport = () => {
 };
 
 export default PenaltyReport;
+

@@ -1,6 +1,8 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import { API_BASE } from '../context/workforceShared';
+import ConfirmModal from '../components/ConfirmModal';
+import { Pencil, Save, XCircle } from 'lucide-react';
 
 const NameMappings = () => {
     const [mappings, setMappings] = useState([]);
@@ -10,6 +12,9 @@ const NameMappings = () => {
     const [newEmpId, setNewEmpId] = useState('');
     const [newAlias, setNewAlias] = useState('');
     const [saving, setSaving] = useState(false);
+    const [deleteTarget, setDeleteTarget] = useState(null);
+    const [editingAlias, setEditingAlias] = useState(null);
+    const [editAliasValue, setEditAliasValue] = useState('');
 
     const fetchData = async () => {
         setLoading(true);
@@ -48,14 +53,41 @@ const NameMappings = () => {
         finally { setSaving(false); }
     };
 
-    const handleDeleteAlias = async (empId, alias) => {
-        if (!confirm('Remove alias "' + alias + '"?')) return;
+    const handleDeleteAlias = (empId, alias) => {
+        setDeleteTarget({ empId, alias });
+    };
+
+    const confirmDeleteAlias = async () => {
+        if (!deleteTarget) return;
         try {
             const token = localStorage.getItem('wf_auth_token');
-            await fetch(API_BASE + '/api/name-mappings/' + encodeURIComponent(empId) + '/alias/' + encodeURIComponent(alias), {
+            await fetch(API_BASE + '/api/name-mappings/' + encodeURIComponent(deleteTarget.empId) + '/alias/' + encodeURIComponent(deleteTarget.alias), {
                 method: 'DELETE',
                 headers: token ? { Authorization: 'Bearer ' + token } : {}
             });
+            setDeleteTarget(null);
+            await fetchData();
+        } catch (err) { setError(err.message); }
+    };
+
+    const handleEditAlias = (empId, alias) => {
+        setEditingAlias({ empId, oldAlias: alias });
+        setEditAliasValue(alias);
+    };
+
+    const saveEditedAlias = async (empId) => {
+        if (!editAliasValue.trim() || editAliasValue === editingAlias.oldAlias) {
+            setEditingAlias(null); return;
+        }
+        try {
+            const token = localStorage.getItem('wf_auth_token');
+            const res = await fetch(API_BASE + '/api/name-mappings/' + encodeURIComponent(empId), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
+                body: JSON.stringify({ oldAlias: editingAlias.oldAlias, newAlias: editAliasValue.trim() })
+            });
+            if (!res.ok) throw new Error('Failed to update alias');
+            setEditingAlias(null);
             await fetchData();
         } catch (err) { setError(err.message); }
     };
@@ -103,12 +135,25 @@ const NameMappings = () => {
                                     <td><div><strong style={{ color: 'var(--primary)' }}>{m.empId}</strong></div><div style={{ fontSize: '0.85rem' }}>{m.employeeName}</div></td>
                                     <td>
                                         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
-                                            {m.aliases.map(alias => (
-                                                <span key={alias} className="pill p-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                    {alias}
-                                                    <button onClick={() => handleDeleteAlias(m.empId, alias)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0, width: 'auto' }}><Trash2 size={12} /></button>
-                                                </span>
-                                            ))}
+                                            {m.aliases.map(alias => {
+                                                const isEditing = editingAlias && editingAlias.empId === m.empId && editingAlias.oldAlias === alias;
+                                                if (isEditing) {
+                                                    return (
+                                                        <div key={alias} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                            <input type="text" value={editAliasValue} onChange={(e) => setEditAliasValue(e.target.value)} style={{ padding: '2px 8px', fontSize: '0.8rem', width: '120px', height: '24px' }} autoFocus />
+                                                            <button onClick={() => saveEditedAlias(m.empId)} style={{ background: 'var(--success)', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', cursor: 'pointer', width: 'auto' }}><Save size={12} /></button>
+                                                            <button onClick={() => setEditingAlias(null)} style={{ background: 'var(--danger)', color: 'white', border: 'none', borderRadius: '4px', padding: '4px', cursor: 'pointer', width: 'auto' }}><XCircle size={12} /></button>
+                                                        </div>
+                                                    );
+                                                }
+                                                return (
+                                                    <span key={alias} className="pill p-blue" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                        {alias}
+                                                        <button onClick={() => handleEditAlias(m.empId, alias)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0 2px', width: 'auto' }}><Pencil size={12} /></button>
+                                                        <button onClick={() => handleDeleteAlias(m.empId, alias)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'inherit', padding: '0 2px', width: 'auto' }}><Trash2 size={12} /></button>
+                                                    </span>
+                                                );
+                                            })}
                                         </div>
                                     </td>
                                 </tr>
@@ -118,8 +163,17 @@ const NameMappings = () => {
                     </table>
                 )}
             </div>
+            <ConfirmModal
+                isOpen={!!deleteTarget}
+                title="Delete Alias?"
+                message={deleteTarget ? `Are you sure you want to delete "${deleteTarget.alias}"?` : ''}
+                onConfirm={confirmDeleteAlias}
+                onCancel={() => setDeleteTarget(null)}
+            />
         </div>
     );
 };
 
 export default NameMappings;
+
+

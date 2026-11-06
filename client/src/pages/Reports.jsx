@@ -34,12 +34,14 @@ const Reports = () => {
     const [month, setMonth] = useState(now.getMonth() + 1);
     const [year, setYear] = useState(now.getFullYear());
     const [attRecords, setAttRecords] = useState([]);
+    const [mergedAttRecords, setMergedAttRecords] = useState([]);
     const [penRecords, setPenRecords] = useState([]);
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedEmployee, setSelectedEmployee] = useState('');
     const [selectedDate, setSelectedDate] = useState('');
     const [search, setSearch] = useState('');
+    const [dateSearch, setDateSearch] = useState('');
     
     // Ported states from PdfSummaryReport
     const [selectedSummaryDates, setSelectedSummaryDates] = useState([]);
@@ -73,18 +75,22 @@ const Reports = () => {
                 const empList = Array.isArray(empRes) ? empRes : [];
                 setEmployees(empList);
 
+                const [att, pen, attMap] = await Promise.all([
+                    fetch(API_BASE + '/api/attendance-report?month=' + month + '&year=' + year, { headers }).then(r => r.json()),
+                    fetch(API_BASE + '/api/penalty-report?month=' + month + '&year=' + year, { headers }).then(r => r.json()),
+                    fetch(API_BASE + '/api/attendance', { headers }).then(r => r.json())
+                ]);
+                
+                const biometric = transformBiometric(attMap, empList).filter(r => r.date.startsWith(prefix));
+                const whatsapp = att.records || [];
+                
+                setMergedAttRecords([...whatsapp, ...biometric]);
+                setPenRecords(pen.records || []);
+
                 if (source === 'whatsapp') {
-                    const [att, pen] = await Promise.all([
-                        fetch(API_BASE + '/api/attendance-report?month=' + month + '&year=' + year, { headers }).then(r => r.json()),
-                        fetch(API_BASE + '/api/penalty-report?month=' + month + '&year=' + year, { headers }).then(r => r.json())
-                    ]);
-                    setAttRecords(att.records || []);
-                    setPenRecords(pen.records || []);
+                    setAttRecords(whatsapp);
                 } else {
-                    const attMap = await fetch(API_BASE + '/api/attendance', { headers }).then(r => r.json());
-                    const transformed = transformBiometric(attMap, empList).filter(r => r.date.startsWith(prefix));
-                    setAttRecords(transformed);
-                    setPenRecords([]); 
+                    setAttRecords(biometric);
                 }
             } catch (err) { console.error(err); }
             finally { setLoading(false); }
@@ -120,7 +126,13 @@ const Reports = () => {
             .sort((a, b) => b.date.localeCompare(a.date));
     }, [attRecords, selectedEmpObj]);
 
-    const dateWiseData = useMemo(() => !selectedDate ? [] : deduplicatedAttRecords.filter(r => r.date === selectedDate), [attRecords, selectedDate]);
+        const dateWiseData = useMemo(() => {
+        if (!selectedDate) return [];
+        const filtered = deduplicatedAttRecords.filter(r => r.date === selectedDate);
+        if (!dateSearch.trim()) return filtered;
+        const s = dateSearch.toLowerCase();
+        return filtered.filter(r => r.name.toLowerCase().includes(s) || (r.employeeId && r.employeeId.toLowerCase().includes(s)));
+    }, [deduplicatedAttRecords, selectedDate, dateSearch]);
 
     const dailyData = useMemo(() => {
         if (!selectedDate) return [];
@@ -173,8 +185,8 @@ const Reports = () => {
                     <h2 className="ct">Reports</h2>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <div style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', background: 'var(--input-bg)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                            <button className={'small-btn ' + (source === 'biometric' ? 'primary-btn' : 'secondary-btn')} onClick={() => setSource('biometric')} style={{ padding: '0.4rem 0.8rem', width: 'auto' }}>Biometric</button>
-                            <button className={'small-btn ' + (source === 'whatsapp' ? 'primary-btn' : 'secondary-btn')} onClick={() => setSource('whatsapp')} style={{ padding: '0.4rem 0.8rem', width: 'auto' }}>WhatsApp</button>
+                            <button className={'small-btn ' + (source === 'biometric' ? 'primary-btn' : 'secondary-btn')} onClick={() => setSource('biometric')} style={{ padding: '0.4rem 0.8rem', width: 'auto' }}>System Attendance</button>
+                            <button className={'small-btn ' + (source === 'whatsapp' ? 'primary-btn' : 'secondary-btn')} onClick={() => setSource('whatsapp')} style={{ padding: '0.4rem 0.8rem', width: 'auto' }}>WhatsApp Data</button>
                         </div>
                         <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))} style={{ padding: '0.5rem', width: 'auto' }}>
                             {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
@@ -227,7 +239,13 @@ const Reports = () => {
                     </>
                 ) : tab === 'date' ? (
                     <>
-                        <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} min={allDates[allDates.length - 1]} max={allDates[0]} style={{ marginBottom: '1rem', maxWidth: '200px' }} />
+                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} min={allDates[allDates.length - 1]} max={allDates[0]} style={{ maxWidth: '200px' }} />
+                            <div style={{ position: 'relative', flex: 1, minWidth: '200px', maxWidth: '400px' }}>
+                                <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                                <input type="text" placeholder="Search employee..." value={dateSearch} onChange={(e) => setDateSearch(e.target.value)} style={{ paddingLeft: '2.25rem', width: '100%' }} />
+                            </div>
+                        </div>
                         <table>
                             <thead><tr><th>Employee</th><th>Check In</th><th>Check Out</th><th style={{ textAlign: 'center' }}>Half Day</th><th style={{ textAlign: 'center' }}>Permission</th><th style={{ textAlign: 'center' }}>Week Off</th><th style={{ textAlign: 'center' }}>Absent</th></tr></thead>
                             <tbody>
@@ -301,7 +319,7 @@ const Reports = () => {
                                             for (const emp of employees) {
                                                 map.set(String(emp.id), { name: emp.name, empId: emp.id, c1: 0, c2: 0, c3: 0, perm: 0, hd: 0, wo: 0 });
                                             }
-                                            for (const r of deduplicatedAttRecords) {
+                                            for (const r of mergedAttRecords) {
                                                 if (!selectedSummaryDates.includes(r.date)) continue;
                                                 const key = r.employeeId ? String(r.employeeId) : ('name:' + r.name);
                                                 const s = map.get(key) || { name: r.name, empId: r.employeeId || '-', c1: 0, c2: 0, c3: 0, perm: 0, hd: 0, wo: 0 };
@@ -343,6 +361,8 @@ const Reports = () => {
 };
 
 export default Reports;
+
+
 
 
 

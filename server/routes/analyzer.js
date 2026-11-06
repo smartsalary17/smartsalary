@@ -6,7 +6,6 @@ const Employee = require('../models/Employee');
 const { ensurePersistentStore, respondStorageUnavailable, shouldUseMockStore } = require('../config/db');
 const { convertAttendance, convertPenalty } = require('../utils/cocoFormat');
 
-// Local parsers (ported from COCO/wa-parser)
 const { parseWhatsAppChat } = require('../parsers/whatsappParser');
 const { parseAttendance } = require('../parsers/attendanceParser');
 const { parsePenalty } = require('../parsers/penaltyParser');
@@ -60,38 +59,28 @@ router.post('/', async (req, res, next) => {
             return await respondStorageUnavailable(res);
         }
 
-        // 1. Load employee context from SMART DB
         const employees = await Employee.find().select('id name').lean();
         const employeeNames = employees.map(e => e.name).filter(Boolean);
-
         const mappings = await NameMapping.find().lean();
         const mappingPayload = mappings.map(m => ({
-            id: m._id,
-            employeeName: m.employeeName,
-            empId: m.empId,
-            aliases: m.aliases || []
+            id: m._id, employeeName: m.employeeName, empId: m.empId, aliases: m.aliases || []
         }));
 
-        // 2. Parse locally (no HTTP, no COCO)
         let messages, attendanceData, penaltyData;
         try {
             messages = parseWhatsAppChat(text);
             if (!messages || messages.length === 0) {
                 return res.status(422).json({ error: 'No valid WhatsApp messages found.' });
             }
-
             attendanceData = parseAttendance(messages, undefined, employeeNames, mappingPayload);
             penaltyData = parsePenalty(messages, undefined, employeeNames, mappingPayload);
         } catch (parseErr) {
-            console.error('Parse error:', parseErr);
             return res.status(500).json({ error: 'Parser failed: ' + parseErr.message });
         }
 
-        // 3. Convert COCO schema → SMART schema
         const attendanceRecords = convertAttendance(attendanceData, mappings);
         const penaltyRecords = convertPenalty(penaltyData, mappings);
 
-        // 4. Save to MongoDB
         const savedAttendance = await bulkUpsertAttendance(attendanceRecords);
         const savedPenalty = await bulkReplacePenalty(penaltyRecords);
 
@@ -104,15 +93,36 @@ router.post('/', async (req, res, next) => {
             penaltyRows: penaltyRecords.length,
             savedAttendance,
             savedPenalty,
-            meta: {
-                rows: messages.length,
-                attendanceRows: attendanceData.length,
-                penaltyRows: penaltyData.length
-            }
+            meta: { rows: messages.length, attendanceRows: attendanceData.length, penaltyRows: penaltyData.length }
         });
-    } catch (e) {
-        next(e);
-    }
+    } catch (e) { next(e); }
+});
+
+// DELETE route (Attendance only, Penalty untouched)
+router.delete('/', async (req, res, next) => {
+    try {
+        if (!shouldUseMockStore() && !(await ensurePersistentStore())) {
+            return await respondStorageUnavailable(res);
+        }
+        const atDel = await AttendanceRecord.deleteMany({ source: 'coco_analyze' });
+        
+        const io = req.app.get('io');
+        if (io) io.emit('state_changed', { type: 'coco_import' });
+        
+        return res.json({ success: true, deletedAttendance: atDel.deletedCount });
+    } catch (e) { next(e); }
+});
+
+// GET route to check if COCO data exists
+router.get('/check', async (req, res, next) => {
+    try {
+        if (!shouldUseMockStore() && !(await ensurePersistentStore())) {
+            return await respondStorageUnavailable(res);
+        }
+        const count = await AttendanceRecord.countDocuments({ source: 'coco_analyze' });
+        return res.json({ hasData: count > 0 });
+    } catch (e) { next(e); }
 });
 
 module.exports = { route: router };
+

@@ -19,7 +19,8 @@ const AttendanceRecordSchema = new mongoose.Schema({
     uploadedBy: { type: String, default: 'admin' }
 }, { timestamps: true });
 
-AttendanceRecordSchema.index({ date: 1, employeeId: 1 }, { unique: true, sparse: true });
+AttendanceRecordSchema.index({ date: 1, employeeId: 1 }, { unique: true, partialFilterExpression: { employeeId: { $type: 'string' } } });
 AttendanceRecordSchema.index({ name: 1, date: 1 });
 
 module.exports = mongoose.model('AttendanceRecord', AttendanceRecordSchema);
+
