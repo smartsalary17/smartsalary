@@ -101,13 +101,13 @@ const IndividualReport = () => {
 
                 <div style={{ flex: '1 1 400px', minWidth: '300px' }}>
                     <div id="ind-calendar-container" style={{ width: '100%', minHeight: '440px', background: 'var(--sidebar-bg)', borderRadius: '24px', padding: '1.5rem', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', position: 'relative', boxShadow: '0 12px 40px rgba(0,0,0,0.3)' }}>
-                        <div style={{ marginBottom: '2rem', borderBottom: '2px solid rgba(255,255,255,0.05)', paddingBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
-                            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                <select value={viewMonth} onChange={(e) => setViewMonth(parseInt(e.target.value))} style={{ background: 'rgba(0, 0, 0, 0.05)', border: '1px solid rgba(0, 0, 0, 0.1)', color: 'var(--text-primary)', fontWeight: 800, padding: '8px 16px', borderRadius: '12px', fontSize: '1.1rem', cursor: 'pointer' }}>
-                                    {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                                </select>
-                                <input type="number" value={viewYear} onChange={(e) => setViewYear(parseInt(e.target.value))} style={{ background: 'rgba(0, 0, 0, 0.05)', border: '1px solid rgba(0, 0, 0, 0.1)', color: 'var(--text-primary)', fontWeight: 800, width: '110px', padding: '8px 16px', borderRadius: '12px', textAlign: 'center', fontSize: '1.1rem' }} />
-                            </div>
+<div style={{ marginBottom: '2rem', borderBottom: '2px solid var(--border-color)', paddingBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '15px' }}>
+    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <select value={viewMonth} onChange={(e) => setViewMonth(parseInt(e.target.value))} style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontWeight: 800, padding: '8px 16px', borderRadius: '12px', fontSize: '1.1rem', cursor: 'pointer' }}>
+            {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+        </select>
+        <input type="number" value={viewYear} onChange={(e) => setViewYear(parseInt(e.target.value))} style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontWeight: 800, width: '110px', padding: '8px 16px', borderRadius: '12px', textAlign: 'center', fontSize: '1.1rem' }} />
+    </div>
                             <div style={{ textAlign: 'right' }}>
                                 <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block' }}>Report View</span>
                                 <span style={{ fontSize: '0.9rem', color: 'var(--text-primary)', fontWeight: 600 }}>ATTENDANCE MAP</span>
