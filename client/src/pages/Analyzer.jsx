@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import { Upload, Loader2, Send, CheckCircle2, AlertTriangle, X, Trash2, FileText, Info } from 'lucide-react';
 import { API_BASE } from '../context/workforceShared';
+import ConfirmModal from '../components/ConfirmModal';
 
 const Analyzer = ({ setPage }) => {
     const [text, setText] = useState(() => localStorage.getItem('analyzer_text') || '');
@@ -12,6 +13,7 @@ const Analyzer = ({ setPage }) => {
     const [loading, setLoading] = useState(false);
     const [clearing, setClearing] = useState(false);
     const [hasDbData, setHasDbData] = useState(false);
+    const [showClearModal, setShowClearModal] = useState(false);
     const [result, setResult] = useState(() => {
         const saved = localStorage.getItem('analyzer_result');
         return saved ? JSON.parse(saved) : null;
@@ -107,8 +109,6 @@ const Analyzer = ({ setPage }) => {
     };
 
     const handleClearDatabase = async () => {
-        if (!window.confirm("Are you sure? This will delete all WhatsApp analyzed Attendance data from the database. Penalty data and Biometric data will NOT be affected.")) return;
-        
         setClearing(true);
         try {
             const token = localStorage.getItem('wf_auth_token');
@@ -174,7 +174,7 @@ const Analyzer = ({ setPage }) => {
                     <h2 className="ct">COCO Analyzer</h2>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         {hasDbData && (
-                            <button onClick={handleClearDatabase} disabled={clearing || loading} className="small-btn secondary-btn" style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--danger)', borderColor: 'rgba(239,68,68,0.3)' }}>
+                            <button onClick={() => setShowClearModal(true)} disabled={clearing || loading} className="small-btn secondary-btn" style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--danger)', borderColor: 'rgba(239,68,68,0.3)' }}>
                                 {clearing ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Trash2 size={16} />} Clear DB (Attendance)
                             </button>
                         )}
@@ -219,9 +219,6 @@ const Analyzer = ({ setPage }) => {
                         value={text} 
                         onChange={(e) => {
                             setText(e.target.value);
-                            if (e.target.value.trim()) {
-                                // Don't clear files, let them coexist or user can clear them manually.
-                            }
                         }} 
                         placeholder="Paste WhatsApp chat text here..." 
                         style={{ minHeight: '150px', padding: '1rem', fontFamily: 'monospace', fontSize: '0.85rem', width: '100%', background: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '12px' }} 
@@ -261,6 +258,19 @@ const Analyzer = ({ setPage }) => {
                     )}
                 </div>
             </div>
+
+            <ConfirmModal
+                isOpen={showClearModal}
+                title="Clear Database?"
+                message="Are you sure? This will delete all WhatsApp analyzed Attendance data from the database. Penalty data and Biometric data will NOT be affected."
+                confirmText="Yes, Clear DB"
+                onConfirm={() => {
+                    setShowClearModal(false);
+                    handleClearDatabase();
+                }}
+                onCancel={() => setShowClearModal(false)}
+                danger={true}
+            />
         </div>
     );
 };

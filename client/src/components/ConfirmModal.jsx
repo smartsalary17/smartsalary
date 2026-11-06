@@ -1,8 +1,10 @@
 ﻿import React from 'react';
+import { createPortal } from 'react-dom';
 
 const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText = 'Confirm', cancelText = 'Cancel', danger = true }) => {
     if (!isOpen) return null;
-    return (
+    
+    return createPortal(
         <div style={{ position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(10px)' }} onClick={onCancel}>
             <div style={{ width: '100%', maxWidth: '400px', padding: '1.5rem', borderRadius: '16px', background: 'var(--sidebar-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', boxShadow: '0 20px 50px rgba(0,0,0,0.3)' }} onClick={e => e.stopPropagation()}>
                 <h2 style={{ marginBottom: '0.75rem', fontSize: '1.15rem' }}>{title}</h2>
@@ -12,9 +14,9 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onCancel, confirmText
                     <button onClick={onConfirm} style={{ padding: '0.65rem 1rem', borderRadius: '8px', border: 'none', background: danger ? '#dc2626' : 'var(--primary)', color: '#fff', cursor: 'pointer', width: 'auto' }}>{confirmText}</button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
 export default ConfirmModal;
-
