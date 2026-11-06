@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import Topbar from './components/Topbar';
 import { useWorkforce } from './context/workforceShared';
@@ -10,7 +10,11 @@ import Employees from './pages/Employees';
 import Attendance from './pages/Attendance';
 import Calculator from './pages/Calculator';
 import Login from './pages/Login';
-import COCOPreview from './pages/COCOAttendancePreview';
+import Analyzer from './pages/Analyzer';
+import PenaltyReport from './pages/PenaltyReport';
+import NameMappings from './pages/NameMappings';
+import Reports from './pages/Reports';
+
 
 const App = () => {
     const { loading, token, logout } = useWorkforce();
@@ -50,16 +54,19 @@ const App = () => {
         );
     }
 
-    const renderPage = () => {
-        switch(page) {
-            case 'dashboard': return <Dashboard onViewAttendance={() => setPage('attendance')} />;
-            case 'employees': return <Employees />;
-            case 'attendance': return <Attendance />;
-            case 'calculator': return <Calculator />;
-            case 'coco-preview': return <COCOPreview />;
-            default: return <Dashboard onViewAttendance={() => setPage('attendance')} />;
-        }
-    };
+const renderPage = () => {
+    switch(page) {
+        case 'dashboard': return <Dashboard onViewAttendance={() => setPage('attendance')} />;
+        case 'employees': return <Employees />;
+        case 'attendance': return <Attendance />;
+        case 'calculator': return <Calculator />;
+        case 'analyzer': return <Analyzer setPage={setPage} />;
+        case 'penalty-report': return <PenaltyReport />;
+        case 'name-mappings': return <NameMappings />;
+        case 'reports': return <Reports />;
+        default: return <Dashboard onViewAttendance={() => setPage('attendance')} />;
+    }
+};
 
     return (
         <div style={{ position: 'relative', minHeight: '100vh', overflowX: 'hidden' }}>
@@ -162,3 +169,5 @@ const App = () => {
 };
 
 export default App;
+
+

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { MONTHS } from '../context/workforceShared';
 
 const Topbar = ({ activePage }) => {
@@ -7,7 +7,11 @@ const Topbar = ({ activePage }) => {
     'employees': 'Employees',
     'attendance': 'Attendance',
     'calculator': 'Salary Calculator',
-    'coco-preview': 'COCO Preview',
+    'analyzer': 'COCO Analyzer',
+    'attendance-report': 'Attendance Report',
+    'penalty-report': 'Penalty Report',
+    'name-mappings': 'Name Mappings',
+    'reports': 'Reports',
   };
 
   const changeTheme = (theme) => {

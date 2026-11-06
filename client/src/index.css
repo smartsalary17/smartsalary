@@ -1,4 +1,5 @@
-:root, [data-theme="dark"] {
+﻿:root, [data-theme="dark"] {
+    color-scheme: dark;
     --primary: #6366f1;
     --primary-hover: #4f46e5;
     --bg-color: #0f172a;
@@ -16,6 +17,7 @@
 }
 
 [data-theme="light"] {
+     color-scheme: light;
     --primary: #4f46e5;
     --primary-hover: #6366f1;
     --bg-color: #f1f5f9;
@@ -33,6 +35,7 @@
 }
 
 [data-theme="ocean"] {
+     color-scheme: dark;
     --primary: #0ea5e9;
     --primary-hover: #0284c7;
     --bg-color: #082f49;
@@ -208,6 +211,7 @@ h1, h2, h3, h4, .net-value, .sv {
 .pt {
     font-size: 1.25rem;
     font-weight: 600;
+    color: var(--text-primary);
 }
 
 .content {
@@ -253,7 +257,7 @@ h1, h2, h3, h4, .net-value, .sv {
 .card:hover, .calculator-card:hover {
     transform: translateY(-4px);
     box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3);
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: color-mix(in srgb, var(--text-secondary) 25%, transparent);
 }
 
 .theme-select {
@@ -272,13 +276,14 @@ h1, h2, h3, h4, .net-value, .sv {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 20px;
-    border-bottom: 1px dotted rgba(255, 255, 255, 0.1);
+    border-bottom: 1px dotted var(--border-color);
     padding-bottom: 12px;
 }
 
 .ct {
     font-size: 1.1rem;
     font-weight: 600;
+    color: var(--text-primary);
 }
 
 .two-col {
@@ -379,13 +384,13 @@ tr:hover td {
     letter-spacing: 0.05em;
 }
 
-.p-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-.p-green { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-.p-amber { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-.p-red { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+.p-blue { background: rgba(59, 130, 246, 0.25); color: #60a5fa; }
+.p-green { background: rgba(34, 197, 94, 0.25); color: #4ade80; }
+.p-amber { background: rgba(245, 158, 11, 0.25); color: #fbbf24; }
+.p-red { background: rgba(239, 68, 68, 0.25); color: #f87171; }
 .p-gray { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
-.p-sl { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
-.p-hl { background: rgba(244, 114, 182, 0.15); color: #f472b6; }
+.p-sl { background: rgba(192, 132, 252, 0.25); color: #c084fc; }
+.p-hl { background: rgba(244, 114, 182, 0.25); color: #f472b6; }
 
 .day-btn {
     display: inline-flex;
@@ -586,12 +591,12 @@ button:active {
     width: auto;
 }
 .btn-icon:hover { background: rgba(255, 255, 255, 0.1); color: var(--text-primary); }
-.btn-icon.delete:hover { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+.btn-icon.delete:hover { background: rgba(239, 68, 68, 0.25); color: #f87171; }
 
 .action-row { margin-bottom: 2rem; }
 
 /* =============================================
-   SALARY STATEMENT RESULT SECTION — FIXED
+   SALARY STATEMENT RESULT SECTION â€” FIXED
    ============================================= */
 
 .result-container {
@@ -637,25 +642,25 @@ button:active {
     font-weight: 500;
 }
 
-/* Left label — dark gray, always readable */
+/* Left label â€” dark gray, always readable */
 .breakdown-item span:first-child {
     color: #374151;
     font-weight: 500;
 }
 
-/* Right value — default black */
+/* Right value â€” default black */
 .breakdown-item span:last-child {
     color: #111827;
     font-weight: 600;
 }
 
-/* Bonus rows — green */
+/* Bonus rows â€” green */
 .breakdown-item.bonus span:last-child {
     color: #16a34a;
     font-weight: 700;
 }
 
-/* Penalty rows — red */
+/* Penalty rows â€” red */
 .breakdown-item.penalty span:last-child {
     color: #dc2626;
     font-weight: 700;
@@ -707,7 +712,7 @@ button:active {
     color: #ffffff;
 }
 
-/* ── Capture / Download JPEG mode ────────────── */
+/* â”€â”€ Capture / Download JPEG mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .result-container.capturing {
     background: #ffffff !important;
     border: none !important;
@@ -849,14 +854,14 @@ button:active {
     outline-offset: 1px;
 }
 
-.cal-day.present { background: rgba(34, 197, 94, 0.15); color: #4ade80; }
-.cal-day.late { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
-.cal-day.absent { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-.cal-day.weekoff { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
-.cal-day.half-day { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+.cal-day.present { background: rgba(34, 197, 94, 0.25); color: #4ade80; }
+.cal-day.late { background: rgba(245, 158, 11, 0.25); color: #fbbf24; }
+.cal-day.absent { background: rgba(239, 68, 68, 0.25); color: #f87171; }
+.cal-day.weekoff { background: rgba(59, 130, 246, 0.25); color: #60a5fa; }
+.cal-day.half-day { background: rgba(168, 85, 247, 0.25); color: #c084fc; }
 .cal-day.leave { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
-.cal-day.sick { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
-.cal-day.holiday { background: rgba(244, 114, 182, 0.15); color: #f472b6; }
+.cal-day.sick { background: rgba(192, 132, 252, 0.25); color: #c084fc; }
+.cal-day.holiday { background: rgba(244, 114, 182, 0.25); color: #f472b6; }
 .cal-day.empty { background: transparent !important; cursor: default; border: none !important; }
 
 .cal-summary {
@@ -1146,14 +1151,14 @@ button:active {
     filter: grayscale(1);
 }
 
-.status-chip[data-status="present"].active { background: rgba(34, 197, 94, 0.15); color: #4ade80; border-color: #4ade80; box-shadow: 0 0 12px rgba(34, 197, 94, 0.1); }
-.status-chip[data-status="late"].active { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border-color: #fbbf24; box-shadow: 0 0 12px rgba(245, 158, 11, 0.1); }
-.status-chip[data-status="weekoff"].active { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border-color: #60a5fa; box-shadow: 0 0 12px rgba(59, 130, 246, 0.1); }
-.status-chip[data-status="absent"].active { background: rgba(239, 68, 68, 0.15); color: #f87171; border-color: #f87171; box-shadow: 0 0 12px rgba(239, 68, 68, 0.1); }
-.status-chip[data-status="office_leave"].active { background: rgba(45, 212, 191, 0.15); color: #2dd4bf; border-color: #2dd4bf; box-shadow: 0 0 12px rgba(45, 212, 191, 0.1); }
-.status-chip[data-status="sick_leave"].active { background: rgba(192, 132, 252, 0.15); color: #c084fc; border-color: #c084fc; box-shadow: 0 0 12px rgba(192, 132, 252, 0.1); }
-.status-chip[data-status="holiday"].active { background: rgba(244, 114, 182, 0.15); color: #f472b6; border-color: #f472b6; box-shadow: 0 0 12px rgba(244, 114, 182, 0.1); }
-.status-chip[data-status="half-day"].active { background: rgba(168, 85, 247, 0.15); color: #c084fc; border-color: #c084fc; box-shadow: 0 0 12px rgba(168, 85, 247, 0.1); }
+.status-chip[data-status="present"].active { background: rgba(34, 197, 94, 0.25); color: #4ade80; border-color: #4ade80;  }
+.status-chip[data-status="late"].active { background: rgba(245, 158, 11, 0.25); color: #fbbf24; border-color: #fbbf24;  }
+.status-chip[data-status="weekoff"].active { background: rgba(59, 130, 246, 0.25); color: #60a5fa; border-color: #60a5fa;  }
+.status-chip[data-status="absent"].active { background: rgba(239, 68, 68, 0.25); color: #f87171; border-color: #f87171;  }
+.status-chip[data-status="office_leave"].active { background: rgba(45, 212, 191, 0.25); color: #2dd4bf; border-color: #2dd4bf;  }
+.status-chip[data-status="sick_leave"].active { background: rgba(192, 132, 252, 0.25); color: #c084fc; border-color: #c084fc;  }
+.status-chip[data-status="holiday"].active { background: rgba(244, 114, 182, 0.25); color: #f472b6; border-color: #f472b6;  }
+.status-chip[data-status="half-day"].active { background: rgba(168, 85, 247, 0.25); color: #c084fc; border-color: #c084fc;  }
 
 .late-time-wrapper {
     display: none;
@@ -3069,3 +3074,15 @@ button:active {
         padding: 0;
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+

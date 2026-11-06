@@ -1,13 +1,17 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+﻿import React, { useEffect, useId, useRef, useState } from 'react';
 import { LayoutDashboard, Users, CalendarCheck, Calculator, Database, LogOut, Menu, X } from 'lucide-react';
 import logo from '../assets/logo.png';
+import { Upload, CalendarDays, Wallet, UserCheck, FileText, CalculatorIcon } from 'lucide-react';
 
 const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', Icon: LayoutDashboard },
-  { id: 'employees', label: 'Employees', Icon: Users },
-  { id: 'attendance', label: 'Attendance', Icon: CalendarCheck },
-  { id: 'calculator', label: 'Salary Calculator', Icon: Calculator },
-  { id: 'coco-preview', label: 'COCO Preview', Icon: Database },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'employees', label: 'Employees', icon: Users },
+    { id: 'attendance', label: 'Attendance', icon: CalendarCheck },
+    { id: 'analyzer', label: 'Analyzer', icon: Upload },
+    { id: 'penalty-report', label: 'Penalty Report', icon: Wallet },
+    { id: 'name-mappings', label: 'Name Mappings', icon: UserCheck },
+    { id: 'reports', label: 'Reports', icon: FileText },
+    { id: 'calculator', label: 'Calculator', icon: CalculatorIcon }
 ];
 
 // Styles are included so this component does not require a separate CSS file.
@@ -16,30 +20,30 @@ const styles = `
 .ss-sidebar {
   width: 248px; flex: 0 0 248px; height: 100dvh; position: sticky; top: 0;
   display: flex; flex-direction: column; padding: 24px 16px 16px;
-  background: #0f172a; color: #f8fafc; border-right: 1px solid #1e293b;
+  background: var(--sidebar-bg); color: var(--text-primary); border-right: 1px solid var(--border-color);
   font-family: Inter, system-ui, -apple-system, sans-serif;
 }
 .ss-brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 28px; }
 .ss-brand img { width: 40px; height: 40px; object-fit: contain; background: #fff; border-radius: 10px; padding: 4px; }
 .ss-brand-title { font-size: 17px; font-weight: 700; letter-spacing: -.4px; }
-.ss-brand-subtitle { margin-top: 4px; font-size: 12px; color: #94a3b8; }
-.ss-section-label { margin: 0 12px 12px; font-size: 11px; font-weight: 600; letter-spacing: 1.4px; color: #94a3b8; }
+.ss-brand-subtitle { margin-top: 4px; font-size: 12px; color: var(--text-secondary); }
+.ss-section-label { margin: 0 12px 12px; font-size: 11px; font-weight: 600; letter-spacing: 1.4px; color: var(--text-secondary); }
 .ss-nav { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; min-height: 0; padding: 4px; }
 .ss-item {
   width: 100%; min-height: 46px; display: flex; align-items: center; gap: 12px;
   border: 0; border-radius: 10px; padding: 12px; background: transparent;
-  color: #cbd5e1; font: inherit; font-size: 14px; font-weight: 500; text-align: left;
+  color: var(--text-secondary); font: inherit; font-size: 14px; font-weight: 500; text-align: left;
   cursor: pointer; transition: background .15s ease, color .15s ease;
 }
 .ss-item svg { flex-shrink: 0; }
-.ss-item:hover { background: #1e293b; color: #fff; }
-.ss-item[aria-current="page"] { background: #2563eb; color: #fff; }
+.ss-item:hover { background: var(--input-bg); color: var(--text-primary); }
+.ss-item[aria-current="page"] { background: var(--primary); color: #fff; }
 .ss-item:focus-visible, .ss-toggle:focus-visible, .ss-close:focus-visible {
   outline: 3px solid #93c5fd; outline-offset: 3px;
 }
-.ss-footer { margin-top: auto; padding-top: 16px; border-top: 1px solid #334155; margin-top: auto; }
-.ss-logout { color: #fca5a5; }
-.ss-logout:hover { background: #3b202c; color: #fecaca; }
+.ss-footer { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border-color); margin-top: auto; }
+.ss-logout { color: var(--danger); }
+.ss-logout:hover { background: rgba(239, 68, 68, 0.1); color: var(--danger); }
 .ss-toggle, .ss-close, .ss-backdrop { display: none; }
 @media (max-width: 767px) {
   .ss-toggle {
@@ -54,8 +58,8 @@ const styles = `
     box-shadow: 12px 0 40px #0003;
   }
   .ss-sidebar[data-open="true"] { transform: translateX(0); visibility: visible; }
-  .ss-close { display: inline-flex; align-self: flex-end; padding: 8px; margin-bottom: 12px; border: 0; border-radius: 8px; background: #1e293b; color: #fff; cursor: pointer; }
-  .ss-backdrop { display: block; position: fixed; inset: 0; z-index: 50; background: #02061799; }
+  .ss-close { display: inline-flex; align-self: flex-end; padding: 8px; margin-bottom: 12px; border: 0; border-radius: 8px; background: var(--input-bg); color: var(--text-primary); cursor: pointer; }
+  .ss-backdrop { display: block; position: fixed; inset: 0; z-index: 50; background: rgba(0,0,0,0.6); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ss-sidebar, .ss-item { transition: none; }
@@ -132,7 +136,7 @@ const Sidebar = ({ activePage, setPage, onLogout }) => {
         </div>
         <p className="ss-section-label">WORKSPACE</p>
         <nav className="ss-nav" aria-label="Main navigation">
-          {menuItems.map(({ id, label, Icon }) => (
+          {menuItems.map(({ id, label, icon: Icon }) => (
             <button key={id} type="button" className="ss-item"
               aria-current={activePage === id ? 'page' : undefined}
               onClick={() => { setPage(id); if (isOpen) closeDrawer(); }}>
@@ -154,3 +158,5 @@ const Sidebar = ({ activePage, setPage, onLogout }) => {
 };
 
 export default Sidebar;
+
+

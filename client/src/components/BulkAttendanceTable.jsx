@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+﻿import React, { useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useWorkforce } from '../context/workforceShared';
 import { FileText, Lock, Unlock } from 'lucide-react';
@@ -104,8 +104,8 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
             id: emp.id,
             name: emp.name,
             status: selectedDateAttendance[emp.id]?.status || '',
-            time: selectedDateAttendance[emp.id]?.time || emp.checkin || '09:00',
-            outTime: selectedDateAttendance[emp.id]?.outTime || '',
+            time: selectedDateAttendance[emp.id]?.status === 'absent' ? '' : (selectedDateAttendance[emp.id]?.time || emp.checkin || '09:00'),
+            outTime: selectedDateAttendance[emp.id]?.status === 'absent' ? '' : (selectedDateAttendance[emp.id]?.outTime || ''),
             workTime: selectedDateAttendance[emp.id]?.workTime || '',
             isBiometric: selectedDateAttendance[emp.id]?.isBiometric || false,
             isCoco: selectedDateAttendance[emp.id]?.isCoco || false
@@ -193,9 +193,9 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                 date: selectedDate,
                 employeeId: item.id,
                 status: item.status,
-                time: item.time,
-                outTime: item.outTime,
-                workTime: item.workTime,
+                time: item.status === 'absent' ? '' : item.time,
+                outTime: item.status === 'absent' ? '' : item.outTime,
+                workTime: item.status === 'absent' ? '' : item.workTime,
                 isBiometric: item.isBiometric,
                 isCoco: item.isCoco
             }));
@@ -237,9 +237,9 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                             if (syncedRecord) {
                                 return {
                                     ...emp,
-                                    time: syncedRecord.time || emp.time,
-                                    outTime: syncedRecord.outTime || emp.outTime,
-                                    workTime: syncedRecord.workTime || emp.workTime,
+                                    time: syncedRecord.status === 'absent' ? '' : (syncedRecord.time || emp.time),
+                                    outTime: syncedRecord.status === 'absent' ? '' : (syncedRecord.outTime || emp.outTime),
+                                    workTime: syncedRecord.status === 'absent' ? '' : (syncedRecord.workTime || emp.workTime),
                                     status: syncedRecord.status || emp.status,
                                     isBiometric: true,
                                     isCoco: false
@@ -469,7 +469,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>IN:</span>
                                 <input
                                     type="time"
-                                    value={emp.time}
+                                    value={emp.status === 'absent' ? '' : emp.time}
                                     className="bulk-time-input"
                                     disabled={isLocked || emp.isBiometric}
                                     style={{ border: 'none', background: 'transparent', padding: 0, height: 'auto', width: '85px', color: 'var(--warning)', fontWeight: 700, cursor: isLocked || emp.isBiometric ? 'not-allowed' : 'text' }}
@@ -480,7 +480,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>OUT:</span>
                                 <input
                                     type="time"
-                                    value={emp.outTime !== '--:--' ? emp.outTime : ''}
+                                    value={emp.status === 'absent' ? '' : (emp.outTime !== '--:--' ? emp.outTime : '')}
                                     className="bulk-time-input"
                                     disabled={isLocked || emp.isBiometric}
                                     style={{ border: 'none', background: 'transparent', padding: 0, height: 'auto', width: '85px', color: 'var(--warning)', fontWeight: 700, cursor: isLocked || emp.isBiometric ? 'not-allowed' : 'text' }}
@@ -611,3 +611,8 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
 };
 
 export default BulkAttendanceTable;
+
+
+
+
+

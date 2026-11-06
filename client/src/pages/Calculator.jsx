@@ -1,50 +1,55 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useWorkforce, MONTHS } from '../context/workforceShared';
+import { useWorkforce, MONTHS, BONUS_TIME_RANGES } from '../context/workforceShared';
+import { API_BASE } from '../context/workforceShared'; 
 import { Download, Calculator as CalcIcon, RefreshCcw } from 'lucide-react';
 import html2canvas from 'html2canvas';
+
+const COCO_PENALTY_TTL = 5 * 60 * 1000;   // 5 minutes
+let cocoPenaltyCache = { data: null, timestamp: 0 };
 
 // ── Only these three employees get the Reviews field ──
 const REVIEW_EMPLOYEES = ['gunasri', 'sireesha', 'vishnukumar'];
 
-const isEarlyCheckin = (timeStr) => {
-    if (!timeStr) return false;
-    
-    let normalized = timeStr.toLowerCase().replace(/\s+/g, '');
-    
-    // If it has PM, it is definitely not early morning AM check-in
-    if (normalized.includes('pm')) return false;
-    
-    // Remove "am"
-    normalized = normalized.replace('am', '');
-    
-    // Replace dots with colons
+// Normalize any stored time ("2:30 AM", "2.30", "0230", "02:30:00", "14:30") to "HH:mm".
+const normalizeTimeToHHmm = (timeStr) => {
+    if (!timeStr) return '';
+
+    let normalized = String(timeStr).toLowerCase().replace(/\s+/g, '');
+
+    let pm = false;
+    let am = false;
+    if (normalized.includes('pm')) { pm = true; normalized = normalized.replace('pm', ''); }
+    else if (normalized.includes('am')) { am = true; normalized = normalized.replace('am', ''); }
+
     normalized = normalized.replace(/\./g, ':');
-    
+
     let h = 0;
     let m = 0;
-    
+
     if (normalized.includes(':')) {
         const parts = normalized.split(':');
         h = parseInt(parts[0], 10) || 0;
         m = parseInt(parts[1], 10) || 0;
     } else {
-        // If it's a number like 230 or 0230 or 2
         const num = parseInt(normalized, 10) || 0;
-        if (num >= 100) {
-            h = Math.floor(num / 100);
-            m = num % 100;
-        } else {
-            h = num;
-            m = 0;
-        }
+        if (num >= 100) { h = Math.floor(num / 100); m = num % 100; }
+        else { h = num; m = 0; }
     }
-    
-    // Pad hours and minutes
-    const padH = String(h).padStart(2, '0');
-    const padM = String(m).padStart(2, '0');
-    const time = `${padH}:${padM}`;
-    
-    return time >= '02:15' && time <= '02:45';
+
+    if (pm && h < 12) h += 12;
+    if (am && h === 12) h = 0;
+
+    if (h < 0 || h > 23 || m < 0 || m > 59) return '';
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
+// Check whether a time falls inside one of the BONUS_TIME_RANGES entries.
+const isTimeInRange = (timeStr, range) => {
+    if (!range?.from || !range?.to) return false;
+    const time = normalizeTimeToHHmm(timeStr);
+    if (!time) return false;
+    if (range.inclusiveTo) return time >= range.from && time <= range.to;
+    return time >= range.from && time < range.to;
 };
 
 const Calculator = () => {
@@ -67,6 +72,8 @@ const Calculator = () => {
     const [reviewCount, setReviewCount] = useState(''); // ← NEW
     const [showResult, setShowResult] = useState(false);
 
+    const [cocoPenaltyData, setCocoPenaltyData] = useState(null);
+    const [lastAutoFilledPenalty, setLastAutoFilledPenalty] = useState('');
     // ── Determine if the selected employee gets the Reviews field ──
     const showReviews = useMemo(() => {
         const emp = employees.find(e => e.id === selEmpId);
@@ -76,52 +83,154 @@ const Calculator = () => {
         );
     }, [selEmpId, employees]);
 
-    // ── Auto-populate when employee / date changes ──
     useEffect(() => {
-        if (!selEmpId) return;
-        const emp = employees.find(e => e.id === selEmpId);
-        if (emp) setBasic(parseFloat(emp.salary) || 0);
+    if (!selEmpId) return;
 
-        let worked = 0, late = 0, takenWeekOffs = 0, early = 0;
-        const daysInMonth = new Date(year, month + 1, 0).getDate();
-        for (let d = 1; d <= daysInMonth; d++) {
-            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const att = attendance[dateStr]?.[selEmpId];
-            
-            const isWorkedStatus = att?.status === 'present' || att?.status === 'late' || att?.status === 'holiday' || att?.status === 'weekoff';
-            const isEarly = isEarlyCheckin(att?.time);
-            
-            let dayWorked = 0;
-            if (isWorkedStatus || isEarly) {
-                dayWorked = 1;
-            } else if (att?.status === 'half-day') {
-                dayWorked = 0.5;
-            }
-            worked += dayWorked;
-            
-            if (att?.status === 'late') late++;
-            if (att?.status === 'weekoff') takenWeekOffs++;
-            if (isEarly) early++;
+    let cancelled = false;
+
+    const fetchPenalty = async () => {
+        // Use cache if fresh
+        if (
+            cocoPenaltyCache.data &&
+            Date.now() - cocoPenaltyCache.timestamp < COCO_PENALTY_TTL
+        ) {
+            if (!cancelled) setCocoPenaltyData(cocoPenaltyCache.data);
+            return;
         }
-        setWorkedDays(worked);
-        setLateDays(late);
-        setEarlyCount(early);
 
-        // Extra working days logic: 4 week-offs allowed. Unused week-offs = extra working days.
-        setExtraDays(Math.max(0, 4 - takenWeekOffs));
-    }, [selEmpId, month, year, employees, attendance]);
+        try {
+            const token = localStorage.getItem('wf_auth_token');
+            const res = await fetch(`${API_BASE}/api/penalty-report?month=${month + 1}&year=${year}`, {
+                method: 'GET',
+                cache: 'no-store',
+                headers: {
+                    Accept: 'application/json',
+                    ...(token ? { Authorization: `Bearer ${token}` } : {})
+                }
+            });
+
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+            const data = await res.json();
+const records = Array.isArray(data?.records) ? data.records.map(r => ({
+    name: r.name,
+    empId: r.employeeId || '',
+    date: r.date,           // already YYYY-MM-DD
+    penalty: r.penalty,
+    penaltyReason: r.penaltyReason
+})) : [];
+cocoPenaltyCache = { data: records, timestamp: Date.now() };
+
+            if (!cancelled) setCocoPenaltyData(records);
+        } catch (err) {
+            console.error('COCO penalty fetch failed:', err);
+            if (!cancelled) setCocoPenaltyData([]);
+        }
+    };
+
+    fetchPenalty();
+    return () => { cancelled = true; };
+}, [selEmpId]);
+
+    // ── Auto-populate when employee / date changes ──
+useEffect(() => {
+    if (!selEmpId) return;
+    const emp = employees.find(e => e.id === selEmpId);
+    if (emp) setBasic(parseFloat(emp.salary) || 0);
+
+    let worked = 0, late = 0, takenWeekOffs = 0;
+    let early = 0, morning = 0, batch = 0;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const att = attendance[dateStr]?.[selEmpId];
+        
+        const isWorkedStatus = att?.status === 'present' || att?.status === 'late' || att?.status === 'holiday' || att?.status === 'weekoff';
+        const isEarly = isTimeInRange(att?.time, BONUS_TIME_RANGES.earlyCheckin);
+        
+        let dayWorked = 0;
+        if (isWorkedStatus || isEarly) {
+            dayWorked = 1;
+        } else if (att?.status === 'half-day') {
+            dayWorked = 0.5;
+        }
+        worked += dayWorked;
+        
+        if (att?.status === 'late') late++;
+        if (att?.status === 'weekoff') takenWeekOffs++;
+        if (isEarly) early++;
+        if (isTimeInRange(att?.time, BONUS_TIME_RANGES.morningCheckin)) morning++;
+        if (isTimeInRange(att?.time, BONUS_TIME_RANGES.morningBatch)) batch++;
+    }
+    setWorkedDays(worked);
+    setLateDays(late);
+    setEarlyCount(early);
+    setMorningCount(morning);   // ← auto
+    setBatchCount(batch);       // ← auto
+
+    // Extra working days logic: 4 week-offs allowed. Unused week-offs = extra working days.
+    setExtraDays(Math.max(0, 4 - takenWeekOffs));
+}, [selEmpId, month, year, employees, attendance]);
+
+// Auto-fill penalty from COCO for selected employee + month
+useEffect(() => {
+    if (!selEmpId || !cocoPenaltyData) return;
+
+    const emp = employees.find(e => e.id === selEmpId);
+    if (!emp) return;
+
+    const monthStr = String(month + 1).padStart(2, '0');
+    const monthPrefix = `${year}-${monthStr}`;
+
+const normalizePenaltyDate = (d) => String(d || '').trim();
+
+    const empIdStr = String(selEmpId).trim().toLowerCase();
+    const empNameStr = String(emp.name || '').trim().toLowerCase();
+
+    const total = cocoPenaltyData
+        .filter(p => {
+            const recEmpId = String(p.empId || '').trim().toLowerCase();
+            const recName = String(p.name || '').trim().toLowerCase();
+
+            const matchesEmp =
+                (recEmpId && recEmpId === empIdStr) ||
+                (empNameStr && recName === empNameStr);
+
+            if (!matchesEmp) return false;
+
+            const iso = normalizePenaltyDate(p.date);
+            return iso && iso.startsWith(monthPrefix);
+        })
+        .reduce((sum, p) => {
+            const amt = parseFloat(p.penalty || 0);
+            return sum + (Number.isFinite(amt) ? amt : 0);
+        }, 0);
+
+    const nextValue = total > 0 ? String(total) : '';
+
+    // Only auto-fill if user hasn't manually overridden
+    if (penalty === '' || penalty === lastAutoFilledPenalty) {
+        setPenalty(nextValue);
+        setLastAutoFilledPenalty(nextValue);
+    }
+}, [selEmpId, month, year, employees, cocoPenaltyData, penalty, lastAutoFilledPenalty]);
 
     // ── Strictly reset manual fields ONLY when the employee selection changes ──
-    useEffect(() => {
-        setOtHours('');
-        setEarlyCount('');
-        setMorningCount('');
-        setBatchCount('');
-        setAllowance('');
-        setPenalty('');
-        setExpense('');
-        setReviewCount('');
-    }, [selEmpId]);
+useEffect(() => {
+    setOtHours('');
+    setAllowance('');
+    setPenalty('');
+    setExpense('');
+    setReviewCount('');
+    setLastAutoFilledPenalty(''); 
+}, [selEmpId]);
+
+// ── Reset penalty when month/year changes so COCO value can re-fill ──
+useEffect(() => {
+    setPenalty('');
+    setLastAutoFilledPenalty('');
+}, [month, year]);
+
 
     const results = useMemo(() => {
         const safeBasic = Number(basic) || 0;
@@ -301,7 +410,15 @@ const Calculator = () => {
                     </div>
                     <div className="input-group">
                         <label>Penalty (Deduction ₹)</label>
-                        <input type="number" value={penalty} onChange={(e) => setPenalty(e.target.value)} className="input-deducted" />
+                        <input
+    type="number"
+    value={penalty}
+    onChange={(e) => {
+        setPenalty(e.target.value);
+        setLastAutoFilledPenalty('');   // ← user typed → stop auto-filling
+    }}
+    className="input-deducted"
+/>
                     </div>
                     <div className="input-group">
                         <label>Expense (Deduction ₹)</label>
