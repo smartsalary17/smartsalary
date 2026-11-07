@@ -10,7 +10,7 @@ export const DAYSHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const configuredApiBase = (import.meta.env.VITE_API_BASE_URL || '').trim();
 
 export const API_BASE = configuredApiBase.replace(/\/+$/, '');
-export const defaultRules = { grace: 0, lateN: 3, lateType: 'halfday', lateFixed: 500 };
+export const defaultRules = { grace: 10, lateN: 3, lateType: 'halfday', lateFixed: 500 };
 
 export const useWorkforce = () => useContext(WorkforceContext);
 
