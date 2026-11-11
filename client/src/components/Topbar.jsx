@@ -7,7 +7,7 @@ const Topbar = ({ activePage }) => {
     'employees': 'Employees',
     'attendance': 'Attendance',
     'calculator': 'Salary Calculator',
-    'analyzer': 'COCO Analyzer',
+    'analyzer': 'Whatsapp Analyzer',
     'attendance-report': 'Attendance Report',
     'penalty-report': 'Penalty Report',
     'name-mappings': 'Name Mappings',

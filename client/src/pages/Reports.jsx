@@ -29,7 +29,7 @@ function transformBiometric(attendanceMap, employees) {
 
 const Reports = () => {
     const now = new Date();
-    const [source, setSource] = useState('biometric');
+    const [source, setSource] = useState(() => localStorage.getItem('default_report_source') || 'biometric');
     const [tab, setTab] = useState('daily');
     const [month, setMonth] = useState(now.getMonth() + 1);
     const [year, setYear] = useState(now.getFullYear());
@@ -367,6 +367,7 @@ const Reports = () => {
 };
 
 export default Reports;
+
 
 
 

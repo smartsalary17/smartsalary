@@ -242,7 +242,7 @@ const Analyzer = ({ setPage }) => {
                             <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}><Info size={14} color="var(--primary)"/> Saved: attendance={result.savedAttendance}, penalty={result.savedPenalty}</span>
                         </div>
                         <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem' }}>
-                            <button className="small-btn primary-btn" onClick={() => setPage('reports')} style={{ width: 'auto', padding: '0.5rem 1rem' }}>View Reports →</button>
+                            <button className="small-btn primary-btn" onClick={() => { localStorage.setItem('default_report_source', 'whatsapp'); setPage('reports'); }} style={{ width: 'auto', padding: '0.5rem 1rem' }}>View Reports →</button>
                         </div>
                     </div>
                 )}
@@ -276,3 +276,4 @@ const Analyzer = ({ setPage }) => {
 };
 
 export default Analyzer;
+
