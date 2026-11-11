@@ -104,7 +104,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
             id: emp.id,
             name: emp.name,
             status: selectedDateAttendance[emp.id]?.status || '',
-            time: selectedDateAttendance[emp.id]?.status === 'absent' ? '' : (selectedDateAttendance[emp.id]?.time || emp.checkin || '09:00'),
+            time: ['absent', 'weekoff'].includes(selectedDateAttendance[emp.id]?.status) ? '' : (selectedDateAttendance[emp.id]?.time || emp.checkin || '09:00'),
             outTime: selectedDateAttendance[emp.id]?.status === 'absent' ? '' : (selectedDateAttendance[emp.id]?.outTime || ''),
             workTime: selectedDateAttendance[emp.id]?.workTime || '',
             isBiometric: selectedDateAttendance[emp.id]?.isBiometric || false,
@@ -193,9 +193,9 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                 date: selectedDate,
                 employeeId: item.id,
                 status: item.status,
-                time: item.status === 'absent' ? '' : item.time,
-                outTime: item.status === 'absent' ? '' : item.outTime,
-                workTime: item.status === 'absent' ? '' : item.workTime,
+time: ['absent', 'weekoff'].includes(item.status) ? '' : item.time,
+outTime: ['absent', 'weekoff'].includes(item.status) ? '' : item.outTime,
+workTime: ['absent', 'weekoff'].includes(item.status) ? '' : item.workTime,
                 isBiometric: item.isBiometric,
                 isCoco: item.isCoco
             }));
@@ -466,7 +466,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                         
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.1)', padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.2)' }}>
-                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>IN:</span>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>IN:</span>
                                 <input
                                     type="time"
                                     value={emp.status === 'absent' ? '' : emp.time}
@@ -477,7 +477,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                                 />
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.1)', padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.2)' }}>
-                                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>OUT:</span>
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>OUT:</span>
                                 <input
                                     type="time"
                                     value={emp.status === 'absent' ? '' : (emp.outTime !== '--:--' ? emp.outTime : '')}

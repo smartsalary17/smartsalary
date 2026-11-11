@@ -140,7 +140,13 @@ const Sidebar = ({ activePage, setPage, onLogout }) => {
           {menuItems.map(({ id, label, icon: Icon }) => (
             <button key={id} type="button" className="ss-item"
               aria-current={activePage === id ? 'page' : undefined}
-              onClick={() => { setPage(id); if (isOpen) closeDrawer(); }}>
+              onClick={() => { 
+    if (id === 'reports') {
+        localStorage.removeItem('default_report_source'); // Clear it so it defaults to system
+    }
+    setPage(id); 
+    if (isOpen) closeDrawer(); 
+}}>
               <Icon size={20} strokeWidth={1.8} aria-hidden="true" />
               <span>{label}</span>
             </button>
