@@ -1,4 +1,5 @@
-import React from 'react';
+﻿import React from 'react';
+import { createPortal } from 'react-dom';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { X } from 'lucide-react';
@@ -8,7 +9,8 @@ const MonthlyReportModal = ({ onClose }) => {
     const { employees, attendance } = useWorkforce();
     const [viewMonth, setViewMonth] = React.useState(new Date().getMonth());
     const [viewYear, setViewYear] = React.useState(new Date().getFullYear());
-    const [format, setFormat] = React.useState('summary'); // 'summary' or 'detailed'
+    const [format, setFormat] = React.useState('summary');
+    const [isDownloading, setIsDownloading] = React.useState(false);
 
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
     const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1);
@@ -17,30 +19,104 @@ const MonthlyReportModal = ({ onClose }) => {
         const el = document.getElementById('report-capture-area');
         if (!el) return;
 
-        // Temporarily adjust for capture
-        const originalWidth = el.style.width;
-        const originalMaxWidth = el.style.maxWidth;
-        el.style.width = 'fit-content';
-        el.style.maxWidth = 'none';
-        
-        const canvas = await html2canvas(el, { 
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            windowWidth: el.scrollWidth
-        });
+        setIsDownloading(true); // Start loading state
 
-        el.style.width = originalWidth;
-        el.style.maxWidth = originalMaxWidth;
+        try {
+            // Temporarily adjust for capture
+            const originalWidth = el.style.width;
+            const originalMaxWidth = el.style.maxWidth;
+            const originalHeight = el.style.height;
+            const originalOverflow = el.style.overflow;
 
-        const img = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('l', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        pdf.addImage(img, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`Attendance_${format === 'summary' ? 'Summary' : 'Detailed'}_${MONTHS[viewMonth]}_${viewYear}.pdf`);
+            el.style.width = 'max-content';
+            el.style.maxWidth = 'none';
+            el.style.height = 'max-content';
+            el.style.overflow = 'visible';
+
+            // Get exact CSS boundaries of each block
+            const containerRect = el.getBoundingClientRect();
+            const blocks = Array.from(el.querySelectorAll('.pdf-block'));
+            const blockBoundsInCSS = blocks.map(b => {
+                const rect = b.getBoundingClientRect();
+                return {
+                    top: rect.top - containerRect.top,
+                    bottom: rect.bottom - containerRect.top
+                };
+            });
+
+            const canvas = await html2canvas(el, { 
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                windowWidth: el.scrollWidth,
+                width: el.scrollWidth,
+                height: el.scrollHeight
+            });
+
+            // Restore styles
+            el.style.width = originalWidth;
+            el.style.maxWidth = originalMaxWidth;
+            el.style.height = originalHeight;
+            el.style.overflow = originalOverflow;
+
+            // FIX: Convert CSS pixels to Canvas pixels using the scale ratio
+            const scale = canvas.width / containerRect.width;
+            const blockBounds = blockBoundsInCSS.map(b => ({
+                top: b.top * scale,
+                bottom: b.bottom * scale
+            }));
+
+            const pdf = new jsPDF('l', 'mm', 'a4');
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            
+            const ratio = pdfWidth / canvas.width;
+            const pxToMm = ratio; 
+            const pageHeightPx = pdfHeight / pxToMm;
+
+            let currentY = 0;
+            let pageIndex = 0;
+
+            while (currentY < canvas.height) {
+                let nextY = currentY + pageHeightPx;
+
+                // Smart Slicing: Find the closest block end within the page limit
+                if (nextY < canvas.height) {
+                    // Find blocks that start after currentY and end before nextY
+                    const validBounds = blockBounds.filter(b => b.bottom > currentY && b.bottom <= nextY);
+                    if (validBounds.length > 0) {
+                        const maxBottom = Math.max(...validBounds.map(b => b.bottom));
+                        if (maxBottom > currentY) {
+                            nextY = maxBottom; 
+                        }
+                    }
+                } else {
+                    nextY = canvas.height;
+                }
+
+                const sliceHeight = nextY - currentY;
+                const sliceCanvas = document.createElement('canvas');
+                sliceCanvas.width = canvas.width;
+                sliceCanvas.height = sliceHeight;
+                const ctx = sliceCanvas.getContext('2d');
+                ctx.drawImage(canvas, 0, currentY, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+                const imgData = sliceCanvas.toDataURL('image/jpeg', 0.95);
+                
+                if (pageIndex > 0) pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, sliceHeight * pxToMm);
+
+                currentY = nextY;
+                pageIndex++;
+            }
+
+            pdf.save(`Attendance_${format === 'summary' ? 'Summary' : 'Detailed'}_${MONTHS[viewMonth]}_${viewYear}.pdf`);
+        } catch (error) {
+            console.error("Error generating PDF:", error);
+        } finally {
+            setIsDownloading(false); // Stop loading state
+        }
     };
-
     const parseTime = (t) => {
         if (!t || t === '--:--') return 0;
         const [h, m] = t.split(':').map(Number);
@@ -76,40 +152,46 @@ const MonthlyReportModal = ({ onClose }) => {
         return status.substring(0, 2).toUpperCase();
     };
 
-    return (
+    return createPortal(
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content report-preview-card" style={{ maxWidth: '95vw', width: format === 'detailed' ? '1200px' : '900px' }} onClick={e => e.stopPropagation()}>
+            <div className="modal-content report-preview-card" style={{ maxWidth: '95vw', width: format === 'detailed' ? '1200px' : '900px', height: '90vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
                 <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
                     <h3 style={{ color: 'var(--primary)', margin: 0 }}>Attendance Report Preview</h3>
+                    
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
                         <select 
                             value={format} 
                             onChange={(e) => setFormat(e.target.value)} 
                             style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '5px 15px', borderRadius: '8px', fontWeight: 600, cursor: 'pointer' }}
                         >
-                            <option value="summary">Summary Grid</option>
-                            <option value="detailed">Time-Office (Detailed)</option>
+                            <option value="summary" style={{ background: 'var(--card-bg)', color: 'var(--text-primary)' }}>Summary Grid</option>
+                            <option value="detailed" style={{ background: 'var(--card-bg)', color: 'var(--text-primary)' }}>Time-Office (Detailed)</option>
                         </select>
+                        
                         <select 
                             value={viewMonth} 
                             onChange={(e) => setViewMonth(parseInt(e.target.value))} 
-                            style={{ background: 'rgba(0, 0, 0, 0.05)', border: '1px solid rgba(0, 0, 0, 0.1)', color: 'var(--text-primary)', fontWeight: 600, padding: '5px 10px', borderRadius: '8px', cursor: 'pointer' }}
+                            style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontWeight: 600, padding: '5px 10px', borderRadius: '8px', cursor: 'pointer' }}
                         >
-                            {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                            {MONTHS.map((m, i) => (
+                                <option key={i} value={i} style={{ background: 'var(--card-bg)', color: 'var(--text-primary)' }}>{m}</option>
+                            ))}
                         </select>
+                        
                         <input 
                             type="number" 
                             value={viewYear} 
                             onChange={(e) => setViewYear(parseInt(e.target.value))} 
-                            style={{ background: 'rgba(0, 0, 0, 0.05)', border: '1px solid rgba(0, 0, 0, 0.1)', color: 'var(--text-primary)', fontWeight: 600, width: '80px', padding: '5px 10px', borderRadius: '8px', textAlign: 'center' }} 
+                            style={{ background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', fontWeight: 600, width: '80px', padding: '5px 10px', borderRadius: '8px', textAlign: 'center' }} 
                         />
-                        <button className="btn-icon" onClick={onClose}><X size={20} /></button>
+                        <button className="btn-icon" onClick={onClose} style={{ color: 'var(--text-primary)' }}><X size={20} /></button>
                     </div>
                 </div>
 
-                <div className="report-document-wrapper">
+                <div className="report-document-wrapper" style={{ overflow: 'auto' }}>
                     <div id="report-capture-area" className="report-document">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', borderBottom: '2px solid #c63f3f', paddingBottom: '1rem' }}>
+                        {/* Add pdf-block class for smart pagination */}
+                        <div className="pdf-block" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', borderBottom: '2px solid #c63f3f', paddingBottom: '1rem' }}>
                             <div>
                                 <h1 style={{ color: '#1e293b', margin: 0, fontSize: '1.5rem' }}>SMART SALARY</h1>
                                 <p style={{ color: '#64748b', fontSize: '0.8rem' }}>Premium HR Solutions</p>
@@ -192,35 +274,40 @@ const MonthlyReportModal = ({ onClose }) => {
                                     });
 
                                     return (
-                                        <div key={emp.id} style={{ marginBottom: '1.5rem', border: '1px solid #ddd', padding: '10px', background: '#fff' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '5px', fontSize: '12px', fontWeight: 'bold' }}>
+                                        /* Added pdf-block class for exact pagination */
+                                        <div key={emp.id} className="pdf-block" style={{ marginBottom: '1.5rem', border: '1px solid #e2e8f0', padding: '10px', background: '#fff' }}>
+                                            
+                                            {/* FIX: Forced dark text color for detailed header */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', borderBottom: '1px solid #e2e8f0', paddingBottom: '5px', fontSize: '12px', fontWeight: 'bold', color: '#1e293b' }}>
                                                 <span>{emp.id} - {emp.name} ({emp.dept || 'Default'})</span>
-                                                <span style={{ color: 'var(--primary)' }}>
+                                                <span style={{ color: '#4f46e5' }}>
                                                     P:{stats.P} | A:{stats.A} | WO:{stats.WO} | LV:{stats.LV} | Work: {formatTime(stats.workMins)}
                                                 </span>
                                             </div>
-                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                                            
+                                            {/* FIX: Forced dark text color for table cells */}
+                                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px', color: '#1e293b' }}>
                                                 <tbody>
                                                     <tr>
-                                                        <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '2px', fontWeight: 'bold' }}>Day</td>
-                                                        {dates.map(d => <td key={d} style={{ border: '1px solid #ddd', padding: '2px' }}>{d}</td>)}
+                                                        <td style={{ background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '4px', fontWeight: 'bold' }}>Day</td>
+                                                        {dates.map(d => <td key={d} style={{ border: '1px solid #e2e8f0', padding: '4px', color: '#1e293b' }}>{d}</td>)}
                                                     </tr>
                                                     <tr>
-                                                        <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '2px', fontWeight: 'bold' }}>IN</td>
-                                                        {daily.map((d, i) => <td key={i} style={{ border: '1px solid #ddd', padding: '2px' }}>{d.in}</td>)}
+                                                        <td style={{ background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '4px', fontWeight: 'bold' }}>IN</td>
+                                                        {daily.map((d, i) => <td key={i} style={{ border: '1px solid #e2e8f0', padding: '4px', color: '#1e293b' }}>{d.in}</td>)}
                                                     </tr>
                                                     <tr>
-                                                        <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '2px', fontWeight: 'bold' }}>OUT</td>
-                                                        {daily.map((d, i) => <td key={i} style={{ border: '1px solid #ddd', padding: '2px' }}>{d.out}</td>)}
+                                                        <td style={{ background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '4px', fontWeight: 'bold' }}>OUT</td>
+                                                        {daily.map((d, i) => <td key={i} style={{ border: '1px solid #e2e8f0', padding: '4px', color: '#1e293b' }}>{d.out}</td>)}
                                                     </tr>
                                                     <tr>
-                                                        <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '2px', fontWeight: 'bold' }}>Work</td>
-                                                        {daily.map((d, i) => <td key={i} style={{ border: '1px solid #ddd', padding: '2px' }}>{d.work}</td>)}
+                                                        <td style={{ background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '4px', fontWeight: 'bold' }}>Work</td>
+                                                        {daily.map((d, i) => <td key={i} style={{ border: '1px solid #e2e8f0', padding: '4px', color: '#1e293b' }}>{d.work}</td>)}
                                                     </tr>
                                                     <tr>
-                                                        <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '2px', fontWeight: 'bold' }}>St.</td>
+                                                        <td style={{ background: '#f8fafc', color: '#475569', border: '1px solid #e2e8f0', padding: '4px', fontWeight: 'bold' }}>St.</td>
                                                         {daily.map((d, i) => (
-                                                            <td key={i} style={{ border: '1px solid #ddd', padding: '2px', color: d.st === 'P' ? '#16a34a' : d.st === 'A' ? '#dc2626' : '#666', fontWeight: 'bold' }}>
+                                                            <td key={i} style={{ border: '1px solid #e2e8f0', padding: '4px', color: d.st === 'P' ? '#16a34a' : d.st === 'A' ? '#dc2626' : '#64748b', fontWeight: 'bold' }}>
                                                                 {d.st}
                                                             </td>
                                                         ))}
@@ -236,11 +323,24 @@ const MonthlyReportModal = ({ onClose }) => {
                 </div>
 
                 <div className="modal-footer" style={{ display: 'flex', justifyContent: 'center', gap: '1rem' }}>
-                    <button className="primary-btn" style={{ width: '220px' }} onClick={downloadPDF}>Download PDF</button>
-                    <button className="secondary-btn" style={{ width: '120px' }} onClick={onClose}>Close</button>
+                    {/* Updated Button with Loading State */}
+                    <button 
+                        className="primary-btn" 
+                        style={{ 
+                            width: '220px', 
+                            opacity: isDownloading ? 0.7 : 1, 
+                            cursor: isDownloading ? 'wait' : 'pointer' 
+                        }} 
+                        onClick={downloadPDF}
+                        disabled={isDownloading}
+                    >
+                        {isDownloading ? 'Generating PDF...' : 'Download PDF'}
+                    </button>
+                    <button className="secondary-btn" style={{ width: '120px' }} onClick={onClose} disabled={isDownloading}>Close</button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

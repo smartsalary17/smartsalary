@@ -512,11 +512,11 @@ select {
     margin-bottom: 2rem;
 }
 .stat-item {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--card-bg);
     padding: 1rem;
     border-radius: 16px;
     text-align: center;
-    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border: 1px dashed var(--border-color);
 }
 .stat-label {
     display: block;
