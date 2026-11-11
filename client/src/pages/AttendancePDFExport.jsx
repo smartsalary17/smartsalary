@@ -2,7 +2,7 @@
 import { Download, Loader2, FileText, CheckSquare, Square } from 'lucide-react';
 import { API_BASE, MONTHS } from '../context/workforceShared';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 function transformBiometric(attendanceMap, employees) {
     const records = [];
@@ -31,6 +31,31 @@ const AttendancePDFExport = () => {
     const [attRecords, setAttRecords] = useState([]);
     const [loading, setLoading] = useState(false);
     const [generating, setGenerating] = useState(false);
+
+    // Helpers for Time Office Logic
+    const parseTime = (t) => {
+        if (!t || t === '--:--') return 0;
+        const [h, m] = t.split(':').map(Number);
+        return (h * 60) + m;
+    };
+
+    const formatTime = (mins) => {
+        if (mins <= 0) return '00:00';
+        const h = Math.floor(mins / 60);
+        const m = mins % 60;
+        return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    };
+
+    const mapStatus = (status) => {
+        if (!status) return '--';
+        if (status === 'present' || status === 'late') return 'P';
+        if (status === 'absent') return 'A';
+        if (status === 'weekoff') return 'WO';
+        if (status === 'half-day') return 'HD';
+        if (status === 'sick_leave' || status.includes('leave')) return 'LV';
+        if (status === 'holiday') return 'HL';
+        return status.substring(0, 2).toUpperCase();
+    };
 
     useEffect(() => {
         const fetchData = async () => {
@@ -73,61 +98,81 @@ const AttendancePDFExport = () => {
         else setSelectedEmpIds(employees.map(e => String(e.id)));
     };
 
+    // Prepare Preview Data (Time Office Format exactly like the image)
     const previewData = useMemo(() => {
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
         return selectedEmpIds.map(empId => {
             const emp = employees.find(e => String(e.id) === String(empId));
-            const rawRecords = attRecords.filter(r => 
+            const stats = { P: 0, A: 0, WO: 0, HL: 0, LV: 0, workMins: 0 };
+
+            const empRecords = attRecords.filter(r => 
                 String(r.employeeId) === String(empId) || String(r.name).toLowerCase() === String(emp?.name).toLowerCase()
             );
-            const uniqueMap = new Map();
-            rawRecords.forEach(r => {
-                const key = `${r.date}-${r.employeeId || r.name}`;
-                if (!uniqueMap.has(key)) uniqueMap.set(key, { ...r });
+
+            const daily = dates.map(d => {
+                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const record = empRecords.find(r => r.date === dateStr);
+                const st = mapStatus(record?.status);
+                
+                if (st === 'P' || st === 'HD') stats.P++;
+                else if (st === 'A') stats.A++;
+                else if (st === 'WO') stats.WO++;
+                else if (st === 'HL') stats.HL++;
+                else if (st === 'LV') stats.LV++;
+                
+                const workTime = record?.workTime || '00:00';
+                if (workTime !== '00:00' && workTime !== '--:--') stats.workMins += parseTime(workTime);
+
+                return {
+                    in: record?.checkIn || '---',
+                    out: record?.checkOut || '---',
+                    work: workTime === '--:--' ? '00:00' : workTime,
+                    st
+                };
             });
-            const records = Array.from(uniqueMap.values()).sort((a, b) => a.date.localeCompare(b.date));
-            return { emp, records };
+
+            return { emp, records: daily, stats, dates };
         }).filter(item => item.emp);
-    }, [selectedEmpIds, employees, attRecords]);
+    }, [selectedEmpIds, employees, attRecords, month, year]);
 
     const generatePDF = () => {
         if (selectedEmpIds.length === 0) return alert("Please select at least one employee.");
         setGenerating(true);
         try {
-            const doc = new jsPDF();
-            const pageWidth = doc.internal.pageSize.getWidth();
+            const doc = new jsPDF('l', 'mm', 'a4'); // Landscape for horizontal table
             let isFirstPage = true;
 
-            previewData.forEach(({ emp, records }) => {
+            previewData.forEach(({ emp, records, stats, dates }) => {
                 if (!isFirstPage) doc.addPage();
                 isFirstPage = false;
 
-                doc.setFontSize(16);
-                doc.text("Attendance Report", pageWidth / 2, 15, { align: 'center' });
+                doc.setFontSize(14);
+                doc.text("SMART SALARY - Time Office Report", 14, 15);
                 doc.setFontSize(10);
-                doc.text(`Employee: ${emp.name} (${emp.id})`, 14, 25);
-                doc.text(`Department: ${emp.dept || 'N/A'}`, 14, 30);
-                doc.text(`Month: ${MONTHS[month - 1]} ${year}`, pageWidth - 14, 25, { align: 'right' });
+                doc.text(`Employee: ${emp.name} (${emp.id})`, 14, 22);
+                doc.text(`Department: ${emp.dept || 'N/A'}`, 14, 27);
+                doc.text(`Month: ${MONTHS[month - 1]} ${year}`, 14, 32);
+                doc.text(`Stats: P:${stats.P} | A:${stats.A} | WO:${stats.WO} | LV:${stats.LV} | Work: ${formatTime(stats.workMins)}`, 14, 37);
 
-                const tableRows = records.map(r => [
-                    r.date.split('-').reverse().join('/'),
-                    r.checkIn || '-', r.checkOut || '-', r.workTime || '-', r.status || '-',
-                    r.permission !== '-' ? 'Permission' : (r.halfDay === 'Yes' ? 'Half Day' : '-')
-                ]);
+                const dayRow = ['Day', ...dates.map(d => String(d))];
+                const inRow = ['IN', ...records.map(r => r.in)];
+                const outRow = ['OUT', ...records.map(r => r.out)];
+                const workRow = ['Work', ...records.map(r => r.work)];
+                const statusRow = ['St.', ...records.map(r => r.st)];
 
-                if (tableRows.length === 0) {
-                    doc.text("No records found for this month.", 14, 45);
-                } else {
-                    doc.autoTable({
-                        startY: 35,
-                        head: [['Date', 'InTime', 'OutTime', 'Work Dur.', 'Status', 'Remarks']],
-                        body: tableRows, theme: 'grid',
-                        headStyles: { fillColor: [44, 62, 80], textColor: 255 },
-                        styles: { fontSize: 9, cellPadding: 3 },
-                        alternateRowStyles: { fillColor: [245, 245, 245] }
-                    });
-                }
+                autoTable(doc, {
+                    startY: 42,
+                    head: [dayRow],
+                    body: [inRow, outRow, workRow, statusRow],
+                    theme: 'grid',
+                    headStyles: { fillColor: [44, 62, 80], textColor: 255, fontSize: 8, cellPadding: 1 },
+                    styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
+                    columnStyles: { 0: { fontStyle: 'bold', halign: 'left', fillColor: [240, 240, 240] } }
+                });
             });
-            doc.save(`Attendance_Report_${MONTHS[month - 1]}_${year}.pdf`);
+            doc.save(`TimeOffice_Report_${MONTHS[month - 1]}_${year}.pdf`);
         } catch (err) {
             console.error(err); alert("Failed to generate PDF.");
         } finally { setGenerating(false); }
@@ -151,7 +196,7 @@ const AttendancePDFExport = () => {
                 }
             `}</style>
 
-            {/* LEFT SIDE: PREVIEW */}
+            {/* LEFT SIDE: PREVIEW (Time Office Style) */}
             <div className="custom-scroll" style={{ flex: 1, background: '#e2e8f0', padding: '20px', borderRadius: '12px', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {selectedEmpIds.length === 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
@@ -160,45 +205,40 @@ const AttendancePDFExport = () => {
                         <p>Select employees from the right panel to preview and generate PDF.</p>
                     </div>
                 ) : (
-                    previewData.map(({ emp, records }) => (
-                        <div key={emp.id} style={{ background: '#fff', padding: '30px', borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', minHeight: '500px', color: '#000', flexShrink: 0 }}>
-                            <div style={{ borderBottom: '2px solid #1e293b', paddingBottom: '10px', marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                                <div>
-                                    <h2 style={{ margin: 0, fontSize: '18px', color: '#1e293b' }}>Attendance Report</h2>
-                                    <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>{emp.name} ({emp.id})</p>
-                                </div>
-                                <div style={{ textAlign: 'right', fontSize: '13px', color: '#64748b' }}>
-                                    <p style={{ margin: 0 }}>{emp.dept || 'N/A'}</p>
-                                    <p style={{ margin: 0 }}>{MONTHS[month - 1]} {year}</p>
-                                </div>
+                    previewData.map(({ emp, records, stats, dates }) => (
+                        <div key={emp.id} style={{ background: '#fff', padding: '20px', borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', color: '#000', width: '100%', boxSizing: 'border-box', overflowX: 'auto' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid #eee', paddingBottom: '5px', fontSize: '12px', fontWeight: 'bold' }}>
+                                <span style={{ color: '#1e293b' }}>{emp.id} - {emp.name} ({emp.dept || (dataSource === 'system' ? 'Biometric' : dataSource === 'whatsapp' ? 'WhatsApp' : 'Both')})</span>
+                                <span style={{ color: '#6366f1' }}>
+                                    P:{stats.P} | A:{stats.A} | WO:{stats.WO} | LV:{stats.LV} | Work: {formatTime(stats.workMins)}
+                                </span>
                             </div>
-                            
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-                                <thead>
-                                    <tr style={{ background: '#2c3e50' }}>
-                                        <th style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'left', color: '#ffffff' }}>Date</th>
-                                        <th style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'left', color: '#ffffff' }}>InTime</th>
-                                        <th style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'left', color: '#ffffff' }}>OutTime</th>
-                                        <th style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'left', color: '#ffffff' }}>Work Dur.</th>
-                                        <th style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'left', color: '#ffffff' }}>Status</th>
-                                        <th style={{ padding: '8px', border: '1px solid #cbd5e1', textAlign: 'left', color: '#ffffff' }}>Remarks</th>
-                                    </tr>
-                                </thead>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
                                 <tbody>
-                                    {records.length === 0 ? (
-                                        <tr><td colSpan={6} style={{ padding: '15px', textAlign: 'center', color: '#64748b' }}>No records found for this month.</td></tr>
-                                    ) : (
-                                        records.map((r, i) => (
-                                            <tr key={i} style={{ borderBottom: '1px solid #cbd5e1', background: i % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                                                <td style={{ padding: '8px', border: '1px solid #cbd5e1', color: '#000000' }}>{r.date.split('-').reverse().join('/')}</td>
-                                                <td style={{ padding: '8px', border: '1px solid #cbd5e1', color: '#000000' }}>{r.checkIn || '-'}</td>
-                                                <td style={{ padding: '8px', border: '1px solid #cbd5e1', color: '#000000' }}>{r.checkOut || '-'}</td>
-                                                <td style={{ padding: '8px', border: '1px solid #cbd5e1', color: '#000000' }}>{r.workTime || '-'}</td>
-                                                <td style={{ padding: '8px', border: '1px solid #cbd5e1', color: '#000000' }}>{r.status || '-'}</td>
-                                                <td style={{ padding: '8px', border: '1px solid #cbd5e1', color: '#000000' }}>{r.permission !== '-' ? 'Permission' : (r.halfDay === 'Yes' ? 'Half Day' : '-')}</td>
-                                            </tr>
-                                        ))
-                                    )}
+                                    <tr>
+                                        <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '4px', fontWeight: 'bold', color: '#000' }}>Day</td>
+                                        {dates.map(d => <td key={d} style={{ border: '1px solid #ddd', padding: '4px', color: '#000', textAlign: 'center' }}>{d}</td>)}
+                                    </tr>
+                                    <tr>
+                                        <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '4px', fontWeight: 'bold', color: '#000' }}>IN</td>
+                                        {records.map((d, i) => <td key={i} style={{ border: '1px solid #ddd', padding: '4px', color: '#000', textAlign: 'center' }}>{d.in}</td>)}
+                                    </tr>
+                                    <tr>
+                                        <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '4px', fontWeight: 'bold', color: '#000' }}>OUT</td>
+                                        {records.map((d, i) => <td key={i} style={{ border: '1px solid #ddd', padding: '4px', color: '#000', textAlign: 'center' }}>{d.out}</td>)}
+                                    </tr>
+                                    <tr>
+                                        <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '4px', fontWeight: 'bold', color: '#000' }}>Work</td>
+                                        {records.map((d, i) => <td key={i} style={{ border: '1px solid #ddd', padding: '4px', color: '#000', textAlign: 'center' }}>{d.work}</td>)}
+                                    </tr>
+                                    <tr>
+                                        <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '4px', fontWeight: 'bold', color: '#000' }}>St.</td>
+                                        {records.map((d, i) => (
+                                            <td key={i} style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'center', color: d.st === 'P' ? '#16a34a' : d.st === 'A' ? '#dc2626' : d.st === 'WO' ? '#6366f1' : '#666', fontWeight: 'bold' }}>
+                                                {d.st}
+                                            </td>
+                                        ))}
+                                    </tr>
                                 </tbody>
                             </table>
                         </div>
@@ -206,47 +246,47 @@ const AttendancePDFExport = () => {
                 )}
             </div>
 
-            {/* RIGHT SIDE: FORCED DARK BLOCK */}
-            <div style={{ width: '350px', flexShrink: 0, height: '100%', display: 'flex', flexDirection: 'column', margin: 0, backgroundColor: '#1e293b', border: '1px solid rgba(148, 163, 184, 0.2)', borderRadius: '20px', padding: '24px' }}>
-                <div style={{ marginBottom: '1rem', borderBottom: '1px dotted rgba(148, 163, 184, 0.2)', paddingBottom: '12px' }}>
-                    <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: '#f8fafc' }}>Export Settings</h2>
+            {/* RIGHT SIDE: EXPORT SETTINGS (Theme Adaptive) */}
+            <div style={{ width: '350px', flexShrink: 0, height: '100%', display: 'flex', flexDirection: 'column', margin: 0, backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '24px' }}>
+                <div style={{ marginBottom: '1rem', borderBottom: '1px dotted var(--border-color)', paddingBottom: '12px' }}>
+                    <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Export Settings</h2>
                 </div>
                 
                 {/* Data Source Toggle */}
-                <div style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', backgroundColor: 'rgba(15, 23, 42, 0.6)', borderRadius: '10px', border: '1px solid rgba(148, 163, 184, 0.1)', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', backgroundColor: 'var(--input-bg)', borderRadius: '10px', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
                     <button className={'small-btn ' + (dataSource === 'system' ? 'primary-btn' : 'secondary-btn')} onClick={() => setDataSource('system')} style={{ padding: '0.4rem 0.8rem', width: '100%', flex: 1 }}>System</button>
                     <button className={'small-btn ' + (dataSource === 'whatsapp' ? 'primary-btn' : 'secondary-btn')} onClick={() => setDataSource('whatsapp')} style={{ padding: '0.4rem 0.8rem', width: '100%', flex: 1 }}>WhatsApp</button>
                     <button className={'small-btn ' + (dataSource === 'both' ? 'primary-btn' : 'secondary-btn')} onClick={() => setDataSource('both')} style={{ padding: '0.4rem 0.8rem', width: '100%', flex: 1 }}>Both</button>
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
-                    <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))} style={{ padding: '0.5rem', width: '100%', backgroundColor: 'rgba(15, 23, 42, 0.6)', color: '#f8fafc', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: '8px' }}>
+                    <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))} style={{ padding: '0.5rem', width: '100%', backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                         {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                     </select>
-                    <input type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value))} style={{ width: '100px', padding: '0.5rem', backgroundColor: 'rgba(15, 23, 42, 0.6)', color: '#f8fafc', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: '8px' }} />
+                    <input type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value))} style={{ width: '100px', padding: '0.5rem', backgroundColor: 'var(--input-bg)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '8px' }} />
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#f8fafc' }}>Select Employees ({selectedEmpIds.length})</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Select Employees ({selectedEmpIds.length})</span>
                     <button onClick={toggleAll} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.8rem', width: 'auto' }}>
                         {selectedEmpIds.length === employees.length ? 'Clear All' : 'Select All'}
                     </button>
                 </div>
 
-                <div className="custom-scroll" style={{ flex: 1, overflowY: 'auto', border: '1px solid rgba(148, 163, 184, 0.1)', borderRadius: '8px', padding: '0.5rem', backgroundColor: 'rgba(15, 23, 42, 0.4)', marginBottom: '1.5rem' }}>
+                <div className="custom-scroll" style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.5rem', backgroundColor: 'var(--input-bg)', marginBottom: '1.5rem' }}>
                     {loading ? (
-                        <div style={{ textAlign: 'center', padding: '2rem' }}><Loader2 size={24} className="animate-spin" color="#f8fafc" /></div>
+                        <div style={{ textAlign: 'center', padding: '2rem' }}><Loader2 size={24} className="animate-spin" color="var(--text-primary)" /></div>
                     ) : employees.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '1rem', color: '#94a3b8' }}>No employees found.</div>
+                        <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)' }}>No employees found.</div>
                     ) : (
                         employees.map(emp => {
                             const isSelected = selectedEmpIds.includes(String(emp.id));
                             return (
-                                <div key={emp.id} onClick={() => toggleEmployee(String(emp.id))} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderBottom: '1px solid rgba(148, 163, 184, 0.1)', cursor: 'pointer', borderRadius: '4px', background: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'transparent', transition: 'all 0.2s' }}>
-                                    {isSelected ? <CheckSquare size={18} color="var(--primary)" /> : <Square size={18} color="#94a3b8" />}
+                                <div key={emp.id} onClick={() => toggleEmployee(String(emp.id))} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', borderRadius: '4px', background: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'transparent', transition: 'all 0.2s' }}>
+                                    {isSelected ? <CheckSquare size={18} color="var(--primary)" /> : <Square size={18} color="var(--text-secondary)" />}
                                     <div>
-                                        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f8fafc' }}>{emp.name}</div>
-                                        <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{emp.id}</div>
+                                        <div style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>{emp.name}</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{emp.id}</div>
                                     </div>
                                 </div>
                             );
