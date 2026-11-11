@@ -299,7 +299,13 @@ const Reports = () => {
 
                         {selectedSummaryDates.length > 0 && (
                             <div className="summary-print-box" style={{ gridColumn: '1 / -1', padding: '2rem', borderRadius: '12px', overflowX: 'auto' }}>
-                                <h2 style={{ textAlign: 'center', marginBottom: '1rem', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>Attendance Summary</h2>
+                                <h2 style={{ textAlign: 'center', marginBottom: '0.5rem', fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-primary)' }}>Attendance Summary</h2>
+                                <div style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                    <strong>Selected Dates: </strong>
+                                    {selectedSummaryDates.length > 0 
+                                        ? selectedSummaryDates.map(d => d.split('-').reverse().join('/')).join(', ') 
+                                        : 'None'}
+                                </div>
                                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                                     <thead>
                                         <tr>
@@ -361,6 +367,7 @@ const Reports = () => {
 };
 
 export default Reports;
+
 
 
 
