@@ -2,6 +2,7 @@
 const NameMapping = require('../models/NameMapping');
 const Employee = require('../models/Employee');
 const AttendanceRecord = require('../models/AttendanceRecord');
+const PenaltyRecord = require('../models/PenaltyRecord');
 const { ensurePersistentStore, respondStorageUnavailable, shouldUseMockStore } = require('../config/db');
 
 const router = express.Router();
@@ -43,10 +44,15 @@ router.post('/', async (req, res, next) => {
         }
         await mapping.save();
 
-        await AttendanceRecord.updateMany(
-            { name: { $regex: '^' + escapeRegex(cleanAlias) + '$', $options: 'i' }, employeeId: null },
-            { $set: { employeeId: cleanEmpId } }
-        ).catch(() => {});
+    await AttendanceRecord.updateMany(
+        { name: { $regex: '^' + escapeRegex(cleanAlias) + '$', $options: 'i' } },
+        { $set: { employeeId: cleanEmpId } }
+    ).catch(() => {});
+
+    await PenaltyRecord.updateMany(
+        { name: { $regex: '^' + escapeRegex(cleanAlias) + '$', $options: 'i' } },
+        { $set: { employeeId: cleanEmpId } }
+    ).catch(() => {});
 
         res.json({ success: true, mapping });
     } catch (e) {

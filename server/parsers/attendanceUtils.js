@@ -557,12 +557,11 @@ function convertRawDateToISO(rawDate) {
             month = first;
             day = second;
         }
-        // Existing WhatsApp/source behaviour:
-        // ambiguous dates remain MM/DD.
-        else {
-            month = first;
-            day = second;
-        }
+    // Default to DD/MM for Indian format
+    else {
+      day = first;
+      month = second;
+    }
     }
     if (year < 2000 ||
         year > 2100 ||
@@ -658,9 +657,9 @@ function normalizeDateSequence(rawDates) {
                 continue;
             }
         }
-        // Fallback to existing source behaviour.
-        result.push(mmdd);
-        previousISO = mmdd;
+// Fallback to DD/MM
+result.push(ddmm);
+previousISO = ddmm;
     }
     return result;
 }
