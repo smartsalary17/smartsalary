@@ -14,7 +14,7 @@ import Analyzer from './pages/Analyzer';
 import PenaltyReport from './pages/PenaltyReport';
 import NameMappings from './pages/NameMappings';
 import Reports from './pages/Reports';
-
+import AttendancePDFExport from './pages/AttendancePDFExport';
 
 const App = () => {
     const { loading, token, logout } = useWorkforce();
@@ -64,6 +64,7 @@ const renderPage = () => {
         case 'penalty-report': return <PenaltyReport />;
         case 'name-mappings': return <NameMappings />;
         case 'reports': return <Reports />;
+        case 'export-pdf': return <AttendancePDFExport />;
         default: return <Dashboard onViewAttendance={() => setPage('attendance')} />;
     }
 };

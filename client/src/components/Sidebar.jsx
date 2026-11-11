@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useId, useRef, useState } from 'react';
-import { LayoutDashboard, Users, CalendarCheck, Calculator, Database, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, CalendarCheck, Calculator, Database, LogOut, Menu, X, Download } from 'lucide-react';
 import logo from '../assets/logo.png';
 import { Upload, CalendarDays, Wallet, UserCheck, FileText, CalculatorIcon } from 'lucide-react';
 
@@ -11,6 +11,7 @@ const menuItems = [
     { id: 'penalty-report', label: 'Penalty Report', icon: Wallet },
     { id: 'name-mappings', label: 'Name Mappings', icon: UserCheck },
     { id: 'reports', label: 'Reports', icon: FileText },
+    { id: 'export-pdf', label: 'Export PDF', icon: Download },
     { id: 'calculator', label: 'Calculator', icon: CalculatorIcon }
 ];
 

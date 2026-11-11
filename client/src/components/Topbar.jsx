@@ -12,6 +12,7 @@ const Topbar = ({ activePage }) => {
     'penalty-report': 'Penalty Report',
     'name-mappings': 'Name Mappings',
     'reports': 'Reports',
+    'export-pdf': 'Attendance PDF'
   };
 
   const changeTheme = (theme) => {
