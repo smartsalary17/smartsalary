@@ -1,4 +1,4 @@
-const axios = require('axios');
+﻿const axios = require('axios');
 const Employee = require('../models/Employee');
 const Attendance = require('../models/Attendance');
 const mockStore = require('../config/mockStore');
@@ -192,7 +192,8 @@ const syncBiometricAttendance = async (dateStr, io, previewOnly = false) => {
 
                 const inMins = parseMins(inTime);
                 const checkInTime = emp.checkin || '09:00';
-                const limitTime = addMinutesToTime(checkInTime, 10);
+                const graceMins = 0; // Hardcoded to 0
+                const limitTime = addMinutesToTime(checkInTime, graceMins);
                 const limitMins = parseMins(limitTime);
 
                 // Early AM check-ins (2:15 AM - 2:30 AM) should NOT be counted as late
@@ -274,3 +275,4 @@ const syncBiometricAttendance = async (dateStr, io, previewOnly = false) => {
 };
 
 module.exports = { syncBiometricAttendance, getBiometricConfigs, getBiometricCredentials };
+
