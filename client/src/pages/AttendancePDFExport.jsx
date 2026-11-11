@@ -141,21 +141,56 @@ const AttendancePDFExport = () => {
         if (selectedEmpIds.length === 0) return alert("Please select at least one employee.");
         setGenerating(true);
         try {
-            const doc = new jsPDF('l', 'mm', 'a4'); // Landscape for horizontal table
+            const doc = new jsPDF('l', 'mm', 'a4'); // Landscape
+            const pageWidth = doc.internal.pageSize.getWidth();
             let isFirstPage = true;
 
-            previewData.forEach(({ emp, records, stats, dates }) => {
+            previewData.forEach(({ emp, records, stats, dates }, index) => {
                 if (!isFirstPage) doc.addPage();
-                isFirstPage = false;
+                
+                let currentY = 15;
 
-                doc.setFontSize(14);
-                doc.text("SMART SALARY - Time Office Report", 14, 15);
+                // 🌟 MAIN HEADER (Only on the first page)
+                if (isFirstPage) {
+                    doc.setFontSize(18);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(30, 41, 59); // #1e293b
+                    doc.text("SMART SALARY", 14, 15);
+                    
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(100, 116, 139); // #64748b
+                    doc.text("Premium HR Solutions", 14, 21);
+
+                    doc.setFontSize(16);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(30, 41, 59);
+                    doc.text("TIME OFFICE REPORT", pageWidth - 14, 15, { align: 'right' });
+                    
+                    doc.setFontSize(11);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(100, 116, 139);
+                    doc.text(`${MONTHS[month - 1]} ${year}`, pageWidth - 14, 21, { align: 'right' });
+
+                    // Red Line
+                    doc.setDrawColor(198, 63, 63); // #c63f3f
+                    doc.setLineWidth(0.5);
+                    doc.line(14, 26, pageWidth - 14, 26);
+                    
+                    currentY = 33;
+                    isFirstPage = false;
+                }
+
+                // 🌟 EMPLOYEE HEADER & STATS
                 doc.setFontSize(10);
-                doc.text(`Employee: ${emp.name} (${emp.id})`, 14, 22);
-                doc.text(`Department: ${emp.dept || 'N/A'}`, 14, 27);
-                doc.text(`Month: ${MONTHS[month - 1]} ${year}`, 14, 32);
-                doc.text(`Stats: P:${stats.P} | A:${stats.A} | WO:${stats.WO} | LV:${stats.LV} | Work: ${formatTime(stats.workMins)}`, 14, 37);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(30, 41, 59);
+                doc.text(`${emp.id} - ${emp.name} (${dataSource === 'system' ? 'Biometric' : dataSource === 'whatsapp' ? 'WhatsApp' : 'Both'})`, 14, currentY);
 
+                doc.setTextColor(99, 102, 241); // #6366f1
+                doc.text(`P:${stats.P} | A:${stats.A} | WO:${stats.WO} | LV:${stats.LV} | Work: ${formatTime(stats.workMins)}`, pageWidth - 14, currentY, { align: 'right' });
+
+                // 🌟 TABLE DATA
                 const dayRow = ['Day', ...dates.map(d => String(d))];
                 const inRow = ['IN', ...records.map(r => r.in)];
                 const outRow = ['OUT', ...records.map(r => r.out)];
@@ -163,13 +198,25 @@ const AttendancePDFExport = () => {
                 const statusRow = ['St.', ...records.map(r => r.st)];
 
                 autoTable(doc, {
-                    startY: 42,
+                    startY: currentY + 3,
                     head: [dayRow],
                     body: [inRow, outRow, workRow, statusRow],
                     theme: 'grid',
-                    headStyles: { fillColor: [44, 62, 80], textColor: 255, fontSize: 8, cellPadding: 1 },
-                    styles: { fontSize: 7, cellPadding: 1, halign: 'center' },
-                    columnStyles: { 0: { fontStyle: 'bold', halign: 'left', fillColor: [240, 240, 240] } }
+                    styles: { fontSize: 7, cellPadding: 1.5, halign: 'center', textColor: [0, 0, 0] },
+                    headStyles: { fillColor: [44, 62, 80], textColor: 255, fontSize: 7, fontStyle: 'bold' },
+                    columnStyles: { 
+                        0: { fontStyle: 'bold', halign: 'left', fillColor: [245, 245, 245], cellWidth: 15 } 
+                    },
+                    margin: { left: 14, right: 14 },
+                    didParseCell: function (data) {
+                        // Color the Status row (Last row)
+                        if (data.row.index === 3) { // 0: IN, 1: OUT, 2: Work, 3: Status
+                            if (data.cell.text[0] === 'P') data.cell.styles.textColor = [22, 163, 74]; // green
+                            else if (data.cell.text[0] === 'A') data.cell.styles.textColor = [220, 38, 38]; // red
+                            else if (data.cell.text[0] === 'WO') data.cell.styles.textColor = [99, 102, 241]; // indigo
+                            data.cell.styles.fontStyle = 'bold';
+                        }
+                    }
                 });
             });
             doc.save(`TimeOffice_Report_${MONTHS[month - 1]}_${year}.pdf`);
@@ -208,7 +255,7 @@ const AttendancePDFExport = () => {
                     previewData.map(({ emp, records, stats, dates }) => (
                         <div key={emp.id} style={{ background: '#fff', padding: '20px', borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', color: '#000', width: '100%', boxSizing: 'border-box', overflowX: 'auto' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid #eee', paddingBottom: '5px', fontSize: '12px', fontWeight: 'bold' }}>
-                                <span style={{ color: '#1e293b' }}>{emp.id} - {emp.name} ({emp.dept || (dataSource === 'system' ? 'Biometric' : dataSource === 'whatsapp' ? 'WhatsApp' : 'Both')})</span>
+                                <span style={{ color: '#1e293b' }}>{emp.id} - {emp.name} ({dataSource === 'system' ? 'Biometric' : dataSource === 'whatsapp' ? 'WhatsApp' : 'Both'})</span>
                                 <span style={{ color: '#6366f1' }}>
                                     P:{stats.P} | A:{stats.A} | WO:{stats.WO} | LV:{stats.LV} | Work: {formatTime(stats.workMins)}
                                 </span>
