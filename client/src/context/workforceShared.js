@@ -10,27 +10,10 @@ export const DAYSHORT = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const configuredApiBase = (import.meta.env.VITE_API_BASE_URL || '').trim();
 
 export const API_BASE = configuredApiBase.replace(/\/+$/, '');
-export const defaultRules = { grace: 0, lateN: 3, lateType: 'halfday', lateFixed: 500 };
+export const defaultRules = { grace: 10, lateN: 3, lateType: 'halfday', lateFixed: 500 };
 
 export const useWorkforce = () => useContext(WorkforceContext);
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// BONUS TIME RANGES  (single place to change)
-//
-// Time format: 24-hour "HH:mm"
-//   from            â†’ inclusive start
-//   to              â†’ if `inclusiveTo: true`, `to` is also counted
-//                     if `inclusiveTo: false`, stops one minute before `to`
-//   amount          â†’ â‚¹ per occurrence
-//
-// Example:
-//   earlyCheckin : 02:15 â†’ 02:45  (both inclusive)   â†’ â‚¹200
-//   morningCheckin: 04:00 â†’ 05:00 (05:00 NOT counted) â†’ â‚¹150
-//   morningBatch : 05:00 â†’ 06:00 (06:00 NOT counted) â†’ â‚¹100
-//
-// So 04:59:59 â†’ Morning,  05:00:00 â†’ Batch.
-// Change these values anytime â€” Calculator picks them up automatically.
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export const BONUS_TIME_RANGES = {
   earlyCheckin:   { from: '02:15', to: '02:45', amount: 200, inclusiveTo: true  },
   morningCheckin: { from: '05:00', to: '05:15', amount: 150, inclusiveTo: false },

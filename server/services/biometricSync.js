@@ -192,7 +192,7 @@ const syncBiometricAttendance = async (dateStr, io, previewOnly = false) => {
 
                 const inMins = parseMins(inTime);
                 const checkInTime = emp.checkin || '09:00';
-                const graceMins = 0; // Hardcoded to 0
+                const graceMins = 10; // Hardcoded to 10
                 const limitTime = addMinutesToTime(checkInTime, graceMins);
                 const limitMins = parseMins(limitTime);
 
