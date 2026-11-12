@@ -171,7 +171,7 @@ const Analyzer = ({ setPage }) => {
 
             <div className="card">
                 <div className="ch" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 className="ct">COCO Analyzer</h2>
+                    <h2 className="ct">Whatsapp Analyzer</h2>
                     <div style={{ display: 'flex', gap: '10px' }}>
                         {hasDbData && (
                             <button onClick={() => setShowClearModal(true)} disabled={clearing || loading} className="small-btn secondary-btn" style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '5px', color: 'var(--danger)', borderColor: 'rgba(239,68,68,0.3)' }}>

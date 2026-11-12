@@ -134,6 +134,16 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                     if (item.id === empId) {
                         const updated = { ...item, ...fields };
                         
+                        // ADD THIS: Clear times for non-working statuses
+                        if ('status' in fields) {
+                            const offStatuses = ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'];
+                            if (offStatuses.includes(fields.status)) {
+                                updated.time = '';
+                                updated.outTime = '';
+                                updated.workTime = '';
+                            }
+                        }
+                        
                         // If check-in time is being changed
                         if ('time' in fields) {
                             const val = fields.time;
@@ -187,18 +197,21 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
     };
 
     const handleSaveBulk = async () => {
+        const offStatuses = ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'];
+        
         const records = tempBulk
             .filter(item => item.status)
             .map(item => ({
                 date: selectedDate,
                 employeeId: item.id,
                 status: item.status,
-time: ['absent', 'weekoff'].includes(item.status) ? '' : item.time,
-outTime: ['absent', 'weekoff'].includes(item.status) ? '' : item.outTime,
-workTime: ['absent', 'weekoff'].includes(item.status) ? '' : item.workTime,
+                time: offStatuses.includes(item.status) ? '' : item.time,
+                outTime: offStatuses.includes(item.status) ? '' : item.outTime,
+                workTime: offStatuses.includes(item.status) ? '' : item.workTime,
                 isBiometric: item.isBiometric,
                 isCoco: item.isCoco
             }));
+            
         await saveBulkAttendance(records);
         setBulkDraft({ key: '', entries: [] }); // Clear draft so UI reflects saved DB state
         hasUserEditedRef.current = false;
@@ -307,8 +320,17 @@ workTime: ['absent', 'weekoff'].includes(item.status) ? '' : item.workTime,
             });
 
             const contentType = res.headers.get('content-type') || '';
+            
+            // 👇 FIX: Handle 404 or non-JSON gracefully
             if (!contentType.includes('application/json')) {
-                throw new Error(`Server returned non-JSON response (Status ${res.status}).`);
+                setDialog({
+                    mode: 'result',
+                    title: 'No records found',
+                    date,
+                    employees: [],
+                    message: `No COCO records found for ${new Date(date).toLocaleDateString('en-IN')}. Existing attendance was not changed.`
+                });
+                return;
             }
 
             const data = await res.json();
@@ -465,24 +487,29 @@ workTime: ['absent', 'weekoff'].includes(item.status) ? '' : item.workTime,
                         </div>
                         
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                            {/* IN Time Input */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.1)', padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.2)' }}>
                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>IN:</span>
                                 <input
                                     type="time"
-                                    value={emp.status === 'absent' ? '' : emp.time}
+                                    // FIXED HERE: Check for all off statuses
+                                    value={['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status) ? '' : emp.time}
                                     className="bulk-time-input"
-                                    disabled={isLocked || emp.isBiometric}
+                                    disabled={isLocked || emp.isBiometric || ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status)}
                                     style={{ border: 'none', background: 'transparent', padding: 0, height: 'auto', width: '85px', color: 'var(--warning)', fontWeight: 700, cursor: isLocked || emp.isBiometric ? 'not-allowed' : 'text' }}
                                     onChange={(e) => updateTemp(emp.id, { time: e.target.value })}
                                 />
                             </div>
+
+                            {/* OUT Time Input */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.1)', padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.2)' }}>
                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>OUT:</span>
                                 <input
                                     type="time"
-                                    value={emp.status === 'absent' ? '' : (emp.outTime !== '--:--' ? emp.outTime : '')}
+                                    // FIXED HERE: Check for all off statuses
+                                    value={['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status) ? '' : (emp.outTime !== '--:--' ? emp.outTime : '')}
                                     className="bulk-time-input"
-                                    disabled={isLocked || emp.isBiometric}
+                                    disabled={isLocked || emp.isBiometric || ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status)}
                                     style={{ border: 'none', background: 'transparent', padding: 0, height: 'auto', width: '85px', color: 'var(--warning)', fontWeight: 700, cursor: isLocked || emp.isBiometric ? 'not-allowed' : 'text' }}
                                     onChange={(e) => updateTemp(emp.id, { outTime: e.target.value })}
                                 />
@@ -611,8 +638,3 @@ workTime: ['absent', 'weekoff'].includes(item.status) ? '' : item.workTime,
 };
 
 export default BulkAttendanceTable;
-
-
-
-
-

@@ -29,6 +29,18 @@ const attendanceMapToRecords = (attendanceMap = {}) => {
     return records;
 };
 
+// Sanitize record to ensure non-working statuses never store time & strip _id
+const sanitizeRecord = (record) => {
+    // Strip _id field to prevent MongoDB ImmutableField error during updates
+    const { _id, ...safeRecord } = record; 
+    
+    const offStatuses = ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'];
+    if (offStatuses.includes(safeRecord.status)) {
+        return { ...safeRecord, time: '', outTime: '', workTime: '' };
+    }
+    return safeRecord;
+};
+
 const getAttendanceMap = async () => {
     if (shouldUseMockStore()) return mockStore.mockAttendance;
 
@@ -86,7 +98,7 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
     try {
-        const record = req.body;
+        const record = sanitizeRecord(req.body);
         
 
 
@@ -120,8 +132,9 @@ router.post('/bulk', async (req, res, next) => {
         if (!shouldUseMockStore() && !(await ensurePersistentStore())) {
             return await respondStorageUnavailable(res);
         }
-
-        await syncAttendanceRecords(records);
+        // Sanitize all records before saving to DB
+        const sanitizedRecords = records.map(sanitizeRecord); 
+        await syncAttendanceRecords(sanitizedRecords); 
         req.app.get('io').emit('state_changed', { type: 'attendance' });
         res.json({ success: true });
     } catch (e) { next(e); }

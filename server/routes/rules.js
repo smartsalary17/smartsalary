@@ -8,7 +8,11 @@ const getRulesConfig = async () => {
     if (shouldUseMockStore()) return mockStore.mockRules;
 
     const rules = await Rules.findOne().lean();
-    return rules || mockStore.mockRules;
+    if (!rules) return mockStore.mockRules;
+    
+    // Strip _id and __v before returning to frontend
+    const { _id, __v, ...safeRules } = rules;
+    return safeRules;
 };
 
 const syncRulesConfig = async (rules = {}) => {
@@ -17,7 +21,12 @@ const syncRulesConfig = async (rules = {}) => {
         return;
     }
 
-    await Rules.findOneAndUpdate({}, rules, { upsert: true });
+    // Strip _id and __v before saving to DB
+    const rulesData = { ...rules };
+    delete rulesData._id;
+    delete rulesData.__v;
+
+    await Rules.findOneAndUpdate({}, rulesData, { upsert: true, new: true });
 };
 
 router.get('/', async (req, res, next) => {

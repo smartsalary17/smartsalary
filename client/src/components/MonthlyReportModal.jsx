@@ -264,11 +264,14 @@ const MonthlyReportModal = ({ onClose }) => {
                                         const workTime = record?.workTime || '00:00';
                                         if (workTime !== '00:00' && workTime !== '--:--') stats.workMins += parseTime(workTime);
 
+                                        // Force empty times for non-working statuses
+                                        const isOff = ['WO', 'A', 'HL', 'LV'].includes(st);
+
                                         return {
-                                            in: record?.time || '--:--',
-                                            out: record?.outTime || '--:--',
-                                            work: workTime === '--:--' ? '00:00' : workTime,
-                                            break: calculateBreakTime(record?.time, record?.outTime, workTime),
+                                            in: isOff ? '--:--' : (record?.time || '--:--'),
+                                            out: isOff ? '--:--' : (record?.outTime || '--:--'),
+                                            work: isOff ? '00:00' : (workTime === '--:--' ? '00:00' : workTime),
+                                            break: isOff ? '00:00' : calculateBreakTime(record?.time, record?.outTime, workTime),
                                             st
                                         };
                                     });
