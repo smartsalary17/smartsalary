@@ -471,6 +471,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                     <input
                         type="date"
                         value={selectedDate}
+                        max={new Date().toISOString().split('T')[0]}
                         disabled={Boolean(dialog)}
                         onChange={(e) => {
                             hasUserEditedRef.current = false;
