@@ -125,13 +125,15 @@ const AttendancePDFExport = () => {
                 const workTime = record?.workTime || '00:00';
                 if (workTime !== '00:00' && workTime !== '--:--') stats.workMins += parseTime(workTime);
 
-                // Force empty times for non-working statuses
+                // Check if the day is empty OR if it's an off-status
+                const isEmpty = !record;
                 const isOff = ['WO', 'A', 'HL', 'LV'].includes(st);
+                const isNoWork = isEmpty || isOff;
 
                 return {
-                    in: isOff ? '---' : (record?.checkIn || '---'),
-                    out: isOff ? '---' : (record?.checkOut || '---'),
-                    work: isOff ? '00:00' : (workTime === '--:--' ? '00:00' : workTime),
+                    in: isNoWork ? '---' : (record?.checkIn || '---'),
+                    out: isNoWork ? '---' : (record?.checkOut || '---'),
+                    work: isNoWork ? '---' : workTime,
                     st
                 };
             });

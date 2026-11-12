@@ -121,7 +121,7 @@ const MonthlyReportModal = ({ onClose }) => {
             setIsDownloading(false); 
         }
     };
-    
+
     const parseTime = (t) => {
         if (!t || t === '--:--') return 0;
         const [h, m] = t.split(':').map(Number);
@@ -270,14 +270,16 @@ const MonthlyReportModal = ({ onClose }) => {
                                         const workTime = record?.workTime || '00:00';
                                         if (workTime !== '00:00' && workTime !== '--:--') stats.workMins += parseTime(workTime);
 
-                                        // Force empty times for non-working statuses
+                                        // Check if the day is empty OR if it's an off-status
+                                        const isEmpty = !record;
                                         const isOff = ['WO', 'A', 'HL', 'LV'].includes(st);
+                                        const isNoWork = isEmpty || isOff;
 
                                         return {
-                                            in: isOff ? '--:--' : (record?.time || '--:--'),
-                                            out: isOff ? '--:--' : (record?.outTime || '--:--'),
-                                            work: isOff ? '00:00' : (workTime === '--:--' ? '00:00' : workTime),
-                                            break: isOff ? '00:00' : calculateBreakTime(record?.time, record?.outTime, workTime),
+                                            in: isNoWork ? '--:--' : (record?.time || '--:--'),
+                                            out: isNoWork ? '--:--' : (record?.outTime || '--:--'),
+                                            work: isNoWork ? '--:--' : workTime,
+                                            break: isNoWork ? '00:00' : calculateBreakTime(record?.time, record?.outTime, workTime),
                                             st
                                         };
                                     });
