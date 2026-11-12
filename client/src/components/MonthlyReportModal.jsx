@@ -19,7 +19,7 @@ const MonthlyReportModal = ({ onClose }) => {
         const el = document.getElementById('report-capture-area');
         if (!el) return;
 
-        setIsDownloading(true); // Start loading state
+        setIsDownloading(true); 
 
         try {
             // Temporarily adjust for capture
@@ -33,7 +33,7 @@ const MonthlyReportModal = ({ onClose }) => {
             el.style.height = 'max-content';
             el.style.overflow = 'visible';
 
-            // Get exact CSS boundaries of each block
+            // Get Y-coordinates of blocks to prevent cutting rows
             const containerRect = el.getBoundingClientRect();
             const blocks = Array.from(el.querySelectorAll('.pdf-block'));
             const blockBoundsInCSS = blocks.map(b => {
@@ -59,7 +59,6 @@ const MonthlyReportModal = ({ onClose }) => {
             el.style.height = originalHeight;
             el.style.overflow = originalOverflow;
 
-            // FIX: Convert CSS pixels to Canvas pixels using the scale ratio
             const scale = canvas.width / containerRect.width;
             const blockBounds = blockBoundsInCSS.map(b => ({
                 top: b.top * scale,
@@ -70,9 +69,15 @@ const MonthlyReportModal = ({ onClose }) => {
             const pdfWidth = pdf.internal.pageSize.getWidth();
             const pdfHeight = pdf.internal.pageSize.getHeight();
             
-            const ratio = pdfWidth / canvas.width;
+            // 👇 ADD MARGINS HERE
+            const marginX = 10; // 10mm left/right
+            const marginY = 10; // 10mm top/bottom
+            const usableWidth = pdfWidth - (marginX * 2);
+            const usableHeight = pdfHeight - (marginY * 2);
+
+            const ratio = usableWidth / canvas.width;
             const pxToMm = ratio; 
-            const pageHeightPx = pdfHeight / pxToMm;
+            const pageHeightPx = usableHeight / pxToMm;
 
             let currentY = 0;
             let pageIndex = 0;
@@ -80,15 +85,12 @@ const MonthlyReportModal = ({ onClose }) => {
             while (currentY < canvas.height) {
                 let nextY = currentY + pageHeightPx;
 
-                // Smart Slicing: Find the closest block end within the page limit
+                // Smart Slicing: Find the exact block bottom to avoid cutting in the middle
                 if (nextY < canvas.height) {
-                    // Find blocks that start after currentY and end before nextY
-                    const validBounds = blockBounds.filter(b => b.bottom > currentY && b.bottom <= nextY);
-                    if (validBounds.length > 0) {
-                        const maxBottom = Math.max(...validBounds.map(b => b.bottom));
-                        if (maxBottom > currentY) {
-                            nextY = maxBottom; 
-                        }
+                    const crossingBlocks = blockBounds.filter(b => b.top < nextY && b.bottom > nextY);
+                    if (crossingBlocks.length > 0) {
+                        const earliestCrossingBlock = crossingBlocks.reduce((prev, current) => (prev.top < current.top) ? prev : current);
+                        nextY = earliestCrossingBlock.top;
                     }
                 } else {
                     nextY = canvas.height;
@@ -104,7 +106,9 @@ const MonthlyReportModal = ({ onClose }) => {
                 const imgData = sliceCanvas.toDataURL('image/jpeg', 0.95);
                 
                 if (pageIndex > 0) pdf.addPage();
-                pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, sliceHeight * pxToMm);
+                
+                // 👇 ADD IMAGE WITH MARGINS
+                pdf.addImage(imgData, 'JPEG', marginX, marginY, usableWidth, sliceHeight * pxToMm);
 
                 currentY = nextY;
                 pageIndex++;
@@ -114,9 +118,10 @@ const MonthlyReportModal = ({ onClose }) => {
         } catch (error) {
             console.error("Error generating PDF:", error);
         } finally {
-            setIsDownloading(false); // Stop loading state
+            setIsDownloading(false); 
         }
     };
+    
     const parseTime = (t) => {
         if (!t || t === '--:--') return 0;
         const [h, m] = t.split(':').map(Number);
@@ -212,7 +217,8 @@ const MonthlyReportModal = ({ onClose }) => {
                                 </thead>
                                 <tbody>
                                     {employees.map(emp => (
-                                        <tr key={emp.id}>
+                                        // Add pdf-block class here to prevent row splitting
+                                        <tr key={emp.id} className="pdf-block">
                                             <td style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{emp.name}</td>
                                             {dates.map(d => {
                                                 const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
