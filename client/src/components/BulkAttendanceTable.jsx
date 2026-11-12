@@ -120,8 +120,26 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
     const tempBulk = bulkDraft.key === bulkDraftKey ? bulkDraft.entries : bulkEntries;
     const isLocked = hasSavedAttendance && !isManuallyUnlocked;
 
+    // Check if at least one employee has checked in
+     const showHolidayButton = tempBulk.length > 0 && tempBulk.every(emp => ['weekoff', 'absent'].includes(emp.status));
+
     const showNotice = (title, message) => {
         setDialog({ mode: 'message', title, message, employees: [] });
+    };
+
+    const handleGlobalHoliday = () => {
+        setBulkDraft(prev => {
+            const currentEntries = prev.key === bulkDraftKey ? prev.entries : bulkEntries;
+            return {
+                key: bulkDraftKey,
+                entries: currentEntries.map(item => {
+                    // Apply holiday to ALL employees when this button is clicked
+                    return { ...item, status: 'holiday', time: '', outTime: '', workTime: '' };
+                })
+            };
+        });
+        hasUserEditedRef.current = true;
+        setIsManuallyUnlocked(true);
     };
 
     const updateTemp = (empId, fields) => {
@@ -134,7 +152,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                     if (item.id === empId) {
                         const updated = { ...item, ...fields };
                         
-                        // ADD THIS: Clear times for non-working statuses
+                        // Clear times for non-working statuses
                         if ('status' in fields) {
                             const offStatuses = ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'];
                             if (offStatuses.includes(fields.status)) {
@@ -151,7 +169,6 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                                 const emp = employees.find(e => e.id === empId);
                                 const checkInTime = emp?.checkin || '09:00';
                                 
-                                // Helper to parse time string "HH:mm" into minutes from midnight
                                 const parseMins = (tStr) => {
                                     if (!tStr) return 0;
                                     const parts = tStr.split(':');
@@ -160,7 +177,6 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                                     return h * 60 + m;
                                 };
                                 
-                                // Helper to add minutes to time string "HH:mm"
                                 const addMinutes = (timeStr, mins) => {
                                     const [h, m] = timeStr.split(':').map(Number);
                                     const total = h * 60 + m + mins;
@@ -175,8 +191,6 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                                 
                                 const isEmpSaved = selectedDateAttendance[empId] !== undefined;
 
-                                // Automatically determine status if it's empty, present, or late
-                                // Do not automatically change status if the employee's attendance is already saved (edit mode)
                                 if (!isEmpSaved) {
                                     if (!updated.status || updated.status === 'present' || updated.status === 'late') {
                                         if (inMins > limitMins) {
@@ -213,7 +227,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
             }));
             
         await saveBulkAttendance(records);
-        setBulkDraft({ key: '', entries: [] }); // Clear draft so UI reflects saved DB state
+        setBulkDraft({ key: '', entries: [] }); 
         hasUserEditedRef.current = false;
         setIsManuallyUnlocked(false);
         showNotice('Attendance saved', 'Attendance changes were saved successfully.');
@@ -263,7 +277,6 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                         hasUserEditedRef.current = true;
                         return { key: bulkDraftKey, entries: newEntries };
                     });
-                    // Temporarily unlock the UI so the user can save the fetched data
                     setIsManuallyUnlocked(true);
                     showNotice('Biometric sync complete', `Fetched ${data.records.length} records. Review the table and click 'Save All Attendance' to update the database.`);
                 } else {
@@ -321,7 +334,6 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
 
             const contentType = res.headers.get('content-type') || '';
             
-            // 👇 FIX: Handle 404 or non-JSON gracefully
             if (!contentType.includes('application/json')) {
                 setDialog({
                     mode: 'result',
@@ -448,6 +460,14 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                     <button className="secondary-btn small-btn" onClick={onOpenReport} style={{ borderColor: 'var(--primary)', color: 'var(--primary)', padding: '0.25rem 0.75rem' }}>
                         <FileText size={16} /> Monthly Report
                     </button>
+                    
+                    {/* Show Set Holiday button ONLY if all employees are weekoff or absent */}
+                    {showHolidayButton && (
+                        <button className="secondary-btn small-btn" onClick={handleGlobalHoliday} disabled={isLocked || isSyncing || isCocoSyncing} style={{ borderColor: '#ec4899', color: '#ec4899', padding: '0.25rem 0.75rem' }}>
+                            Set Holiday
+                        </button>
+                    )}
+
                     <input
                         type="date"
                         value={selectedDate}
@@ -472,18 +492,49 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                         </div>
                         
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-                            {['present', 'late', 'absent', 'weekoff', 'half-day', 'sick_leave', 'holiday'].map(st => (
-                                <span
-                                    key={st}
-                                    className={`status-chip ${emp.status === st ? 'active' : ''}`}
-                                    data-status={st}
-                                    onClick={() => !isLocked && updateTemp(emp.id, { status: st })}
-                                    title={isLocked ? 'Attendance is locked. Click Edit to modify.' : ''}
-                                    style={{ cursor: isLocked ? 'not-allowed' : 'pointer', opacity: isLocked && emp.status !== st ? 0.4 : 1, transition: 'opacity 0.2s', padding: '4px 10px', fontSize: '0.75rem' }}
-                                >
-                                    {st.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-                                </span>
-                            ))}
+                            {['present', 'late', 'absent', 'weekoff', 'half-day', 'sick_leave', 'holiday'].map(st => {
+                                const hasTime = Boolean(emp.time);
+                                
+                                // Define Groups
+                                const isTimeStatus = ['present', 'late', 'half-day'].includes(st);
+                                const isOffStatus = ['absent', 'weekoff', 'sick_leave', 'holiday', 'office_leave'].includes(st);
+                                
+                                const currentIsTime = ['present', 'late', 'half-day'].includes(emp.status);
+                                const currentIsOff = ['absent', 'weekoff', 'sick_leave', 'holiday', 'office_leave'].includes(emp.status);
+
+                                let isDisabled = isLocked;
+
+                                if (!isLocked) {
+                                    if (currentIsTime) {
+                                        // 1. If currently present/late/half-day, lock everything else
+                                        isDisabled = emp.status !== st;
+                                    } else if (currentIsOff) {
+                                        // 2. If currently absent/weekoff/sick/holiday, allow switching to other off-statuses, but block time-statuses
+                                        isDisabled = isTimeStatus;
+                                    } else {
+                                        // 3. If no status is set yet, use the time check
+                                        if (hasTime && isOffStatus) isDisabled = true;
+                                        if (!hasTime && isTimeStatus) isDisabled = true;
+                                    }
+                                }
+
+                                return (
+                                    <span
+                                        key={st}
+                                        className={`status-chip ${emp.status === st ? 'active' : ''}`}
+                                        data-status={st}
+                                        onClick={() => !isDisabled && updateTemp(emp.id, { status: st })}
+                                        title={isLocked ? 'Attendance is locked.' : isDisabled ? 'Cannot change status.' : ''}
+                                        style={{ 
+                                            cursor: isDisabled ? 'not-allowed' : 'pointer',
+                                            padding: '4px 10px', 
+                                            fontSize: '0.75rem'
+                                        }}
+                                    >
+                                        {st.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                                    </span>
+                                );
+                            })}
                         </div>
                         
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
@@ -492,7 +543,6 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>IN:</span>
                                 <input
                                     type="time"
-                                    // FIXED HERE: Check for all off statuses
                                     value={['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status) ? '' : emp.time}
                                     className="bulk-time-input"
                                     disabled={isLocked || emp.isBiometric || ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status)}
@@ -506,7 +556,6 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>OUT:</span>
                                 <input
                                     type="time"
-                                    // FIXED HERE: Check for all off statuses
                                     value={['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status) ? '' : (emp.outTime !== '--:--' ? emp.outTime : '')}
                                     className="bulk-time-input"
                                     disabled={isLocked || emp.isBiometric || ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status)}
