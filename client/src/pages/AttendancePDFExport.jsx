@@ -160,7 +160,7 @@ const AttendancePDFExport = () => {
             doc.setFontSize(10);
             doc.setFont('helvetica', 'normal');
             doc.setTextColor(100, 116, 139);
-            doc.text("Premium HR Solutions", 14, 21);
+            doc.text("Microbotware Technology", 14, 21);
 
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');

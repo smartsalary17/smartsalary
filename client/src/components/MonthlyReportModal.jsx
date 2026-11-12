@@ -194,7 +194,7 @@ const MonthlyReportModal = ({ onClose }) => {
                         <div className="pdf-block" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.5rem', borderBottom: '2px solid #c63f3f', paddingBottom: '1rem' }}>
                             <div>
                                 <h1 style={{ color: '#1e293b', margin: 0, fontSize: '1.5rem' }}>SMART SALARY</h1>
-                                <p style={{ color: '#64748b', fontSize: '0.8rem' }}>Premium HR Solutions</p>
+                                <p style={{ color: '#64748b', fontSize: '0.8rem' }}>Microbotware Technology</p>
                             </div>
                             <div style={{ textAlign: 'right' }}>
                                 <h2 style={{ color: '#1e293b', margin: 0, fontSize: '1.1rem' }}>{format === 'summary' ? 'MONTHLY SUMMARY' : 'TIME OFFICE'} REPORT</h2>
