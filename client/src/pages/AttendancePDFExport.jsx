@@ -331,7 +331,7 @@ const AttendancePDFExport = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                     <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Select Employees ({selectedEmpIds.length})</span>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        {selectedEmpIds.length > 0 && (
+                        {selectedEmpIds.length > 0 && selectedEmpIds.length !== employees.length && (
                             <button onClick={() => setSelectedEmpIds([])} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '0.8rem', width: 'auto' }}>
                                 Clear
                             </button>
