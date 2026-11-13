@@ -60,3 +60,5 @@ backups/
 
 # dataconnect generated files
 .dataconnect
+
+scratch_check.js
