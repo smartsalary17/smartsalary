@@ -111,7 +111,7 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                 )}
 
                 {loading ? (
-                    <div style={{ textAlign: 'center', padding: '3rem' }}><Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} /></div>
+                    <div style={{ color: 'var(--spinner)', textAlign: 'center', padding: '3rem' }}><Loader2 size={24} style={{ animation: 'spin 1s linear infinite' }} /></div>
                 ) : error ? (
                     <div style={{ color: 'var(--danger)', padding: '1rem' }}>{error}</div>
                 ) : records.length === 0 ? (
