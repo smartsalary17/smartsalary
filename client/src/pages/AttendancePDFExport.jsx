@@ -68,7 +68,8 @@ const AttendancePDFExport = () => {
                 const [empRes, whatsappRes, biometricRes] = await Promise.all([
                     fetch(`${API_BASE}/api/employees`, { headers }).then(r => r.json()),
                     fetch(`${API_BASE}/api/attendance-report?month=${month}&year=${year}`, { headers }).then(r => r.json()),
-                    fetch(`${API_BASE}/api/attendance`, { headers }).then(r => r.json())
+                    // Add month and year to the biometric API call here
+                    fetch(`${API_BASE}/api/attendance?month=${month}&year=${year}`, { headers }).then(r => r.json())
                 ]);
 
                 const empList = Array.isArray(empRes) ? empRes : [];

@@ -41,10 +41,27 @@ const sanitizeRecord = (record) => {
     return safeRecord;
 };
 
-const getAttendanceMap = async () => {
-    if (shouldUseMockStore()) return mockStore.mockAttendance;
+const getAttendanceMap = async (month, year) => {
+    let filter = {};
+    if (month && year) {
+        const m = String(month).padStart(2, '0');
+        filter = { date: { $regex: `^${year}-${m}-` } };
+    }
 
-    const data = await Attendance.find().lean();
+    if (shouldUseMockStore()) {
+        // Filter mock store data if month/year provided
+        if (month && year) {
+            const prefix = `${year}-${String(month).padStart(2, '0')}-`;
+            const filtered = {};
+            Object.keys(mockStore.mockAttendance).forEach(date => {
+                if (date.startsWith(prefix)) filtered[date] = mockStore.mockAttendance[date];
+            });
+            return filtered;
+        }
+        return mockStore.mockAttendance;
+    }
+
+    const data = await Attendance.find(filter).lean();
     return data.reduce((map, record) => {
         if (!map[record.date]) map[record.date] = {};
         map[record.date][record.employeeId] = { 
@@ -88,11 +105,12 @@ const syncAttendanceRecords = async (records = []) => {
 
 router.get('/', async (req, res, next) => {
     try {
-        if (shouldUseMockStore()) return res.json(mockStore.mockAttendance);
-        if (!(await ensurePersistentStore())) {
+        const { month, year } = req.query;
+        
+        if (!shouldUseMockStore() && !(await ensurePersistentStore())) {
             return await respondStorageUnavailable(res);
         }
-        res.json(await getAttendanceMap());
+        res.json(await getAttendanceMap(month, year));
     } catch (e) { next(e); }
 });
 

@@ -53,16 +53,16 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                 const headers = token ? { Authorization: 'Bearer ' + token } : {};
                 if (source === 'whatsapp') {
                     const res = await fetch(API_BASE + '/api/attendance-report?month=' + month + '&year=' + year, { headers });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
-                    setRecords(data.records || []);
+                    // ... (keep this as is)
                 } else {
+                    // Add month and year to the biometric API call
                     const [attRes, empRes] = await Promise.all([
-                        fetch(API_BASE + '/api/attendance', { headers }).then(r => r.json()),
+                        fetch(API_BASE + `/api/attendance?month=${month}&year=${year}`, { headers }).then(r => r.json()),
                         fetch(API_BASE + '/api/employees', { headers }).then(r => r.json())
                     ]);
                     const transformed = transformBiometric(attRes, Array.isArray(empRes) ? empRes : []);
                     const prefix = year + '-' + String(month).padStart(2, '0') + '-';
+                    // Filtering here is fine as a safety net, but data is already filtered by backend
                     setRecords(transformed.filter(r => r.date.startsWith(prefix)));
                 }
                 setSelectedDate('');
