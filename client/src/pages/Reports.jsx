@@ -80,10 +80,12 @@ const Reports = () => {
                 const headers = token ? { Authorization: 'Bearer ' + token } : {};
                 const prefix = year + '-' + String(month).padStart(2, '0') + '-';
 
-                // Fetch employees only once if not loaded
-                if (employees.length === 0) {
+                // Fetch employees first
+                let currentEmployees = employees;
+                if (currentEmployees.length === 0) {
                     const empRes = await fetch(API_BASE + '/api/employees', { headers }).then(r => r.json());
-                    setEmployees(Array.isArray(empRes) ? empRes : []);
+                    currentEmployees = Array.isArray(empRes) ? empRes : [];
+                    setEmployees(currentEmployees);
                 }
 
                 if (source === 'whatsapp') {
@@ -93,7 +95,7 @@ const Reports = () => {
                     ]);
                     
                     const whatsapp = att.records || [];
-                    setAllWhatsappNames(att.distinctNames || []); // Set all names
+                    setAllWhatsappNames(att.distinctNames || []);
 
                     if (isFirstLoad.current && att.availableMonths && att.availableMonths.length > 0 && whatsapp.length === 0) {
                         const latest = att.availableMonths[0];
@@ -113,9 +115,10 @@ const Reports = () => {
                     const [attMap] = await Promise.all([
                         fetch(API_BASE + `/api/attendance?month=${month}&year=${year}`, { headers }).then(r => r.json()),
                     ]);
-                    const biometric = transformBiometric(attMap, employees).filter(r => r.date.startsWith(prefix));
+                    // 👇 Use currentEmployees instead of employees to prevent race condition
+                    const biometric = transformBiometric(attMap, currentEmployees).filter(r => r.date.startsWith(prefix));
                     setAttRecords(biometric);
-                    setPenRecords([]); // Clear penalty if biometric
+                    setPenRecords([]);
                 }
             } catch (err) { console.error(err); }
             finally { setLoading(false); }
@@ -140,8 +143,6 @@ const Reports = () => {
     }, [month, year]);
     useEffect(() => { if (allDates.length && !allDates.includes(selectedDate)) setSelectedDate(allDates[0]); }, [allDates, selectedDate]);
 
-    const selectedEmpObj = useMemo(() => employees.find(e => String(e.id) === selectedEmployee), [employees, selectedEmployee]);
-
     const dropdownEmployees = useMemo(() => {
         if (source === 'biometric') return employees;
         
@@ -160,6 +161,19 @@ const Reports = () => {
         
         return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
     }, [employees, allWhatsappNames, source]);
+
+    const selectedEmpObj = useMemo(() => {
+        const list = source === 'biometric' ? employees : dropdownEmployees;
+        return list.find(e => String(e.id) === String(selectedEmployee));
+    }, [employees, dropdownEmployees, selectedEmployee, source]);
+
+    // Add this new useEffect right below the existing employees useEffect
+    useEffect(() => {
+        const list = source === 'biometric' ? employees : dropdownEmployees;
+        if (list.length > 0 && !list.some(e => String(e.id) === String(selectedEmployee))) {
+            setSelectedEmployee(String(list[0].id));
+        }
+    }, [employees, dropdownEmployees, selectedEmployee, source]);
     
     const nameWiseData = useMemo(() => {
         if (!selectedEmpObj) return [];
@@ -248,6 +262,20 @@ const Reports = () => {
         { id: 'summary', label: 'Summary', icon: FileText }
     ];
 
+        const renderStatusPills = (r) => {
+        return (
+            <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                {r.status === 'absent' && <span className="pill p-red">Absent</span>}
+                {r.status === 'weekoff' && <span className="pill p-sl">Week Off</span>}
+                {r.status === 'present' && <span className="pill p-green">Present</span>}
+                {r.status === 'late' && <span className="pill p-amber">Late</span>}
+                {r.halfDay === 'Yes' && <span className="pill p-amber">Half Day</span>}
+                {r.permission && r.permission !== '-' && <span className="pill p-blue">Permission</span>}
+                {(!r.status || r.status === 'no-record') && r.halfDay !== 'Yes' && (!r.permission || r.permission === '-') && '—'}
+            </div>
+        );
+    };
+
     return (
         <div className="pg active">
             <div className="card">
@@ -287,27 +315,17 @@ const Reports = () => {
                             ))}
                         </select>
                         <table>
-                            <thead><tr><th>Date</th><th>Check In</th><th>Check Out</th><th style={{ textAlign: 'center' }}>Half Day</th><th style={{ textAlign: 'center' }}>Permission</th><th style={{ textAlign: 'center' }}>Week Off</th><th style={{ textAlign: 'center' }}>Absent</th></tr></thead>
+                            <thead><tr><th>Date</th><th>Check In</th><th>Check Out</th><th style={{ textAlign: 'center' }}>Status</th></tr></thead>
                             <tbody>
-                                {nameWiseData.map((r, i) => {
-                                    const dayPenalty = penRecords.filter(p => {
-                                        const matchEmp = r.employeeId && p.employeeId && String(p.employeeId) === String(r.employeeId);
-                                        const matchName = p.name === selectedEmpObj?.name;
-                                        return (matchEmp || matchName) && p.date === r.date;
-                                    }).reduce((s, p) => s + Number(p.penalty || 0), 0);
-                                    return (
-                                        <tr key={i}>
-                                            <td>{r.date.split('-').reverse().join('/')}</td>
-                                            <td style={{ color: 'var(--success)' }}>{r.status === 'absent' ? '-' : (r.checkIn || '-')}</td>
-                                            <td style={{ color: 'var(--danger)' }}>{r.status === 'absent' ? '-' : (r.checkOut || '-')}</td>
-                                            <td style={{ textAlign: 'center' }}>{r.halfDay === 'Yes' ? 'Yes' : '—'}</td>
-                                            <td style={{ textAlign: 'center' }}>{r.permission && r.permission !== '-' ? 'Yes' : '—'}</td>
-                                            <td style={{ textAlign: 'center' }}>{r.weekOff === 'Yes' ? 'Yes' : '—'}</td>
-                                            <td style={{ textAlign: 'center' }}>{r.status === 'absent' ? 'Yes' : '—'}</td>
-                                        </tr>
-                                    );
-                                })}
-                                {nameWiseData.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No {source} records for this employee</td></tr>}
+                                {nameWiseData.map((r, i) => (
+                                    <tr key={i}>
+                                        <td>{r.date.split('-').reverse().join('/')}</td>
+                                        <td style={{ color: 'var(--success)' }}>{r.status === 'absent' || r.status === 'no-record' ? '-' : (r.checkIn || '-')}</td>
+                                        <td style={{ color: 'var(--danger)' }}>{r.status === 'absent' || r.status === 'no-record' ? '-' : (r.checkOut || '-')}</td>
+                                        <td>{renderStatusPills(r)}</td>
+                                    </tr>
+                                ))}
+                                {nameWiseData.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No {source} records for this employee</td></tr>}
                             </tbody>
                         </table>
                     </>
@@ -328,20 +346,17 @@ const Reports = () => {
                             </div>
                         </div>
                         <table>
-                            <thead><tr><th>Employee</th><th>Check In</th><th>Check Out</th><th style={{ textAlign: 'center' }}>Half Day</th><th style={{ textAlign: 'center' }}>Permission</th><th style={{ textAlign: 'center' }}>Week Off</th><th style={{ textAlign: 'center' }}>Absent</th></tr></thead>
+                            <thead><tr><th>Employee</th><th>Check In</th><th>Check Out</th><th style={{ textAlign: 'center' }}>Status</th></tr></thead>
                             <tbody>
                                 {dateWiseData.map((r, i) => (
                                     <tr key={i}>
                                         <td><strong>{r.name}</strong></td>
                                         <td style={{ color: 'var(--success)' }}>{r.status === 'absent' || r.status === 'no-record' ? '-' : (r.checkIn || '-')}</td>
                                         <td style={{ color: 'var(--danger)' }}>{r.status === 'absent' || r.status === 'no-record' ? '-' : (r.checkOut || '-')}</td>
-                                        <td style={{ textAlign: 'center' }}>{r.halfDay === 'Yes' ? 'Yes' : '—'}</td>
-                                        <td style={{ textAlign: 'center' }}>{r.permission && r.permission !== '-' ? 'Yes' : '—'}</td>
-                                        <td style={{ textAlign: 'center' }}>{r.weekOff === 'Yes' ? 'Yes' : '—'}</td>
-                                        <td style={{ textAlign: 'center' }}>{r.status === 'absent' ? 'Yes' : '—'}</td>
+                                        <td>{renderStatusPills(r)}</td>
                                     </tr>
                                 ))}
-                                {dateWiseData.length === 0 && <tr><td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No records on {selectedDate}</td></tr>}
+                                {dateWiseData.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No records on {selectedDate}</td></tr>}
                             </tbody>
                         </table>
                     </>
