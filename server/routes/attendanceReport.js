@@ -25,11 +25,14 @@ router.get('/', async (req, res, next) => {
         const allDates = await AttendanceRecord.distinct('date');
         const availableMonths = Array.from(new Set(allDates.map(d => d.slice(0, 7)))).sort().reverse();
 
+        const distinctNames = await AttendanceRecord.distinct('name');
+
         res.json({
             success: true,
             count: records.length,
             records,
-            availableMonths
+            availableMonths,
+            distinctNames
         });
     } catch (e) { next(e); }
 });

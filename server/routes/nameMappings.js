@@ -46,12 +46,12 @@ router.post('/', async (req, res, next) => {
 
     await AttendanceRecord.updateMany(
         { name: { $regex: '^' + escapeRegex(cleanAlias) + '$', $options: 'i' } },
-        { $set: { employeeId: cleanEmpId } }
+        { $set: { employeeId: cleanEmpId ,name: cleanName } }
     ).catch(() => {});
 
     await PenaltyRecord.updateMany(
         { name: { $regex: '^' + escapeRegex(cleanAlias) + '$', $options: 'i' } },
-        { $set: { employeeId: cleanEmpId } }
+        { $set: { employeeId: cleanEmpId ,name: cleanName } }
     ).catch(() => {});
 
         res.json({ success: true, mapping });
