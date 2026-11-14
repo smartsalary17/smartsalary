@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal';
 const NameMappings = () => {
     const [mappings, setMappings] = useState([]);
     const [employees, setEmployees] = useState([]);
+    const [unmappedNames, setUnmappedNames] = useState([]); // 👈 New state
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [newEmpId, setNewEmpId] = useState('');
@@ -19,13 +20,22 @@ const NameMappings = () => {
         setLoading(true);
         try {
             const token = localStorage.getItem('wf_auth_token');
-            const res = await fetch(API_BASE + '/api/name-mappings', {
-                headers: token ? { Authorization: 'Bearer ' + token } : {}
-            });
+            const headers = token ? { Authorization: 'Bearer ' + token } : {};
+            
+            // Fetch mappings and unmapped names together
+            const [res, unmappedRes] = await Promise.all([
+                fetch(API_BASE + '/api/name-mappings', { headers }),
+                fetch(API_BASE + '/api/name-mappings/unmapped', { headers })
+            ]);
+            
             const data = await res.json();
+            const unmappedData = await unmappedRes.json();
+            
             if (!res.ok) throw new Error(data.error);
+            
             setMappings(data.mappings || []);
             setEmployees(data.employees || []);
+            setUnmappedNames(unmappedData.unmappedNames || []); // Set unmapped names
         } catch (err) { setError(err.message); }
         finally { setLoading(false); }
     };
@@ -47,7 +57,7 @@ const NameMappings = () => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
             setNewAlias('');
-            await fetchData();
+            await fetchData(); // Refetch to update dropdown and table
         } catch (err) { setError(err.message); }
         finally { setSaving(false); }
     };
@@ -99,12 +109,12 @@ const NameMappings = () => {
                     <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{mappings.length} mapped</span>
                 </div>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
-                    Map WhatsApp saved names to official SMART employees. New employees added in Employees page appear here automatically.
+                    Map WhatsApp saved names to official SMART employees. Select an Analyzer name from the dropdown to easily map unmapped records.
                 </p>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.75rem', marginBottom: '1.5rem' }}>
                     <div className="input-group">
-                        <label>Employee</label>
+                        <label>Employee (ID - Name)</label>
                         <select value={newEmpId} onChange={(e) => setNewEmpId(e.target.value)}>
                             <option value="">Select employee...</option>
                             {employees.map(e => <option key={e.id} value={e.id}>{e.id} — {e.name}</option>)}
@@ -112,11 +122,31 @@ const NameMappings = () => {
                     </div>
                     <div className="input-group">
                         <label>WhatsApp Saved Name</label>
-                        <input type="text" value={newAlias} onChange={(e) => setNewAlias(e.target.value)} placeholder="e.g. Vasanth Smart" onKeyDown={(e) => e.key === 'Enter' && handleAdd()} />
+                        {/* 👇 Dropdown + Input combination */}
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <select 
+                                onChange={(e) => setNewAlias(e.target.value)} 
+                                value={unmappedNames.includes(newAlias) ? newAlias : ''}
+                                style={{ flex: 1 }}
+                            >
+                                <option value="">-- Select Analyzer Name --</option>
+                                {unmappedNames.map(name => (
+                                    <option key={name} value={name}>{name}</option>
+                                ))}
+                            </select>
+                            <input 
+                                type="text" 
+                                value={newAlias} 
+                                onChange={(e) => setNewAlias(e.target.value)} 
+                                placeholder="Or type manually..." 
+                                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+                                style={{ flex: 1 }} 
+                            />
+                        </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'flex-end' }}>
                         <button className="primary-btn" onClick={handleAdd} disabled={saving} style={{ padding: '0.75rem 1.25rem', width: 'auto' }}>
-                            {saving ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <><Plus size={18} /> Add</>}
+                            {saving ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <><Plus size={18} /> Map</>}
                         </button>
                     </div>
                 </div>
@@ -137,8 +167,7 @@ const NameMappings = () => {
                                 <tr key={m.empId}>
                                     <td>
                                         <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <strong style={{ color: 'var(--primary)' }}>{m.empId}</strong>
-                                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{displayName}</span>
+                                            <strong style={{ color: 'var(--primary)' }}>{m.empId} - {displayName}</strong>
                                         </div>
                                     </td>
                                     <td>
@@ -185,5 +214,3 @@ const NameMappings = () => {
 };
 
 export default NameMappings;
-
-

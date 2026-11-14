@@ -61,6 +61,17 @@ router.post('/', async (req, res, next) => {
     }
 });
 
+router.get('/unmapped', async (req, res, next) => {
+    try {
+        // Get unique unmapped names from Attendance and Penalty
+        const attNames = await AttendanceRecord.distinct('name', { employeeId: { $regex: '^unmapped_' } });
+        const penNames = await PenaltyRecord.distinct('name', { employeeId: { $regex: '^unmapped_' } });
+        
+        const allUnmapped = [...new Set([...attNames, ...penNames])];
+        res.json({ success: true, unmappedNames: allUnmapped });
+    } catch (e) { next(e); }
+});
+
 // ✅ ONLY UPDATES ALIAS & BYPASSES VALIDATION
 router.put('/:empId', async (req, res, next) => {
     try {
