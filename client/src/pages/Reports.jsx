@@ -294,6 +294,10 @@ const Reports = () => {
                         year={year} 
                         source={source} 
                         hideHeader={true} 
+                        onMonthChange={(newMonth, newYear) => {
+                            setMonth(newMonth);
+                            setYear(newYear);
+                        }}
                     />
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>

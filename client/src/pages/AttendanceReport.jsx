@@ -32,7 +32,7 @@ function transformBiometric(attendanceMap, employees) {
     return records;
 }
 
-const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource, hideHeader = false }) => {
+const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource, hideHeader = false, onMonthChange }) => {
     const now = new Date();
     const [source, setSource] = useState(propSource || 'biometric');
     const [month, setMonth] = useState(propMonth || now.getMonth() + 1);
@@ -45,6 +45,23 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
     const hasAutoSwitched = useRef(false);
     const isFirstLoad = useRef(true);
 
+    const handleDateChange = (newDateStr) => {
+        setSelectedDate(newDateStr);
+        if (newDateStr && onMonthChange) {
+            const [y, m] = newDateStr.split('-');
+            if (parseInt(y) !== year || parseInt(m) !== month) {
+                onMonthChange(parseInt(m), parseInt(y)); // Parent state update
+            }
+        }
+    };
+
+    const shiftDate = (dateStr, days) => {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        d.setDate(d.getDate() + days);
+        return d.toISOString().split('T')[0];
+    };
+    
     useEffect(() => {
         if (propSource) setSource(propSource);
         if (propMonth) setMonth(propMonth);
@@ -129,9 +146,18 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                 ) : (
                     <>
                         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <button className="small-btn secondary-btn" onClick={() => { const i = dates.indexOf(activeDate); if (i < dates.length - 1) setSelectedDate(dates[i + 1]); }} style={{ width: 'auto' }}><ChevronLeft size={16} /></button>
-                            <input type="date" value={activeDate} onChange={(e) => setSelectedDate(e.target.value)} min={dates[dates.length - 1]} max={dates[0]} style={{ padding: '0.5rem', width: 'auto' }} />
-                            <button className="small-btn secondary-btn" onClick={() => { const i = dates.indexOf(activeDate); if (i > 0) setSelectedDate(dates[i - 1]); }} style={{ width: 'auto' }}><ChevronRight size={16} /></button>
+                            {/* 👇 Prev Button Fixed */}
+                            <button className="small-btn secondary-btn" onClick={() => handleDateChange(shiftDate(activeDate, -1))} style={{ width: 'auto' }}>
+                                <ChevronLeft size={16} />
+                            </button>
+                            
+                            <input type="date" value={activeDate} onChange={(e) => handleDateChange(e.target.value)} min={dates[dates.length - 1]} max={dates[0]} style={{ padding: '0.5rem', width: 'auto' }} />
+                            
+                            {/* 👇 Next Button Fixed */}
+                            <button className="small-btn secondary-btn" onClick={() => handleDateChange(shiftDate(activeDate, 1))} style={{ width: 'auto' }}>
+                                <ChevronRight size={16} />
+                            </button>
+                            
                             <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
                                 <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                                 <input type="text" placeholder="Search employee..." value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingLeft: '2.25rem', width: '100%' }} />
@@ -161,6 +187,7 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                                             <td style={{ textAlign: 'center' }}>{r.halfDay === 'Yes' ? <span className="pill p-amber">HD</span> : '—'}</td>
                                             <td style={{ textAlign: 'center' }}>{r.permission && r.permission !== '-' ? <span className="pill p-blue">PERM</span> : '—'}</td>
                                             <td style={{ textAlign: 'center' }}>{r.weekOff === 'Yes' ? <span className="pill p-sl">WO</span> : '—'}</td>
+                                            <td style={{ textAlign: 'center' }}>{r.status === 'absent' ? <span className="pill p-red">A</span> : '—'}</td>
                                         </tr>
                                     ))}
                                     {dayRecords.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No records on {activeDate}</td></tr>}
