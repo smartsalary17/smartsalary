@@ -121,7 +121,6 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                 if (mappedEmp) map.set(String(mappedEmp.id), { id: String(mappedEmp.id), name: mappedEmp.name, isMapped: true });
                 else map.set(name, { id: name, name: name, isMapped: false });
             });
-            // Include any records not in allWhatsappNames
             records.forEach(r => {
                 const isUnmapped = !r.employeeId || String(r.employeeId).startsWith('unmapped_');
                 const key = isUnmapped ? r.name : String(r.employeeId);
@@ -139,12 +138,12 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
             );
 
             if (rec) {
-                return { ...rec, name: emp.name, employeeId: emp.isMapped ? emp.id : '-' };
+                return { ...rec, name: emp.name, employeeId: emp.isMapped ? emp.id : `unmapped_${emp.name}` };
             }
 
             return {
                 date: activeDate,
-                employeeId: emp.isMapped ? emp.id : '-',
+                employeeId: emp.isMapped ? emp.id : `unmapped_${emp.name}`,
                 name: emp.name,
                 status: 'no-record',
                 checkIn: '-',
@@ -155,10 +154,21 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
             };
         });
 
+        // 👇 Sort Logic: Mapped by ID, Unmapped by Name
+        combined.sort((a, b) => {
+            const aUnmapped = String(a.employeeId).startsWith('unmapped_');
+            const bUnmapped = String(b.employeeId).startsWith('unmapped_');
+            if (aUnmapped && bUnmapped) return a.name.localeCompare(b.name);
+            if (aUnmapped) return 1;
+            if (bUnmapped) return -1;
+            return String(a.employeeId).localeCompare(String(b.employeeId), undefined, { numeric: true });
+        });
+
         if (!search.trim()) return combined;
         const s = search.toLowerCase();
         return combined.filter(r => r.name.toLowerCase().includes(s));
     }, [records, activeDate, search, employees, allWhatsappNames, source]);
+
 
     const summary = useMemo(() => ({
         total: dayRecords.length,
@@ -237,7 +247,15 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                                 <tbody>
                                     {dayRecords.map((r, i) => (
                                         <tr key={i}>
-                                            <td><strong>{r.name}</strong>{r.employeeId && <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginLeft: '6px' }}>({r.employeeId})</span>}</td>
+                                            <td>
+    <strong>{r.name}</strong>
+    {r.employeeId && !String(r.employeeId).startsWith('unmapped_') && r.employeeId !== '-' && (
+        <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginLeft: '6px' }}>({r.employeeId})</span>
+    )}
+    {String(r.employeeId).startsWith('unmapped_') && (
+        <span style={{ color: 'var(--warning)', fontSize: '0.65rem', marginLeft: '6px' }}>(Unmapped)</span>
+    )}
+</td>
                                             <td style={{ color: 'var(--success)' }}>{r.checkIns?.length ? r.checkIns.join(', ') : (r.checkIn || '-')}</td>
                                             <td style={{ color: 'var(--danger)' }}>{r.checkOuts?.length ? r.checkOuts.join(', ') : (r.checkOut || '-')}</td>
                                         <td style={{ textAlign: 'center' }}>

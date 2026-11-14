@@ -58,7 +58,6 @@ async function autoAppendAliases(messages, mappings, employees) {
         newAliasesMap.get(emp.id).add(sender);
     }
 
-    // Save new aliases to DB
     for (const [empId, aliases] of newAliasesMap.entries()) {
         const emp = employees.find(e => String(e.id) === String(empId));
         let mapping = await NameMapping.findOne({ empId: String(empId) });
@@ -81,6 +80,18 @@ async function autoAppendAliases(messages, mappings, employees) {
         
         if (changed) {
             await mapping.save({ validateBeforeSave: false });
+        }
+
+        // 👇 ADD THIS: Update existing Attendance and Penalty records instantly
+        for (const alias of aliases) {
+            await AttendanceRecord.updateMany(
+                { name: { $regex: `^${escapeRegex(alias)}$`, $options: 'i' } },
+                { $set: { employeeId: String(empId) } }
+            );
+            await PenaltyRecord.updateMany(
+                { name: { $regex: `^${escapeRegex(alias)}$`, $options: 'i' } },
+                { $set: { employeeId: String(empId) } }
+            );
         }
     }
 }
@@ -150,7 +161,7 @@ router.post('/', async (req, res, next) => {
         const attendanceRecords = convertAttendance(attendanceData, mappings);
         const penaltyRecords = convertPenalty(penaltyData, mappings);
         await autoAppendAliases(messages, mappings, employees);
-        
+
         const savedAttendance = await bulkUpsertAttendance(attendanceRecords);
         const savedPenalty = await bulkReplacePenalty(penaltyRecords);
 
