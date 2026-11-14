@@ -28,7 +28,7 @@ function transformBiometric(attendanceMap, employees) {
     return records;
 }
 
-const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource, hideHeader = false, onMonthChange }) => {
+const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource, hideHeader = false }) => {
     const now = new Date();
     const [source, setSource] = useState(propSource || 'biometric');
     const [month, setMonth] = useState(propMonth || now.getMonth() + 1);
@@ -53,28 +53,14 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
             try {
                 const token = localStorage.getItem('wf_auth_token');
                 const headers = token ? { Authorization: 'Bearer ' + token } : {};
-                if (source === 'whatsapp') {
-                    const res = await fetch(API_BASE + '/api/attendance-report?month=' + month + '&year=' + year, { headers });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+            if (source === 'whatsapp') {
+                const res = await fetch(API_BASE + '/api/attendance-report?month=' + month + '&year=' + year, { headers });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
 
-                    // 👇 FIX: Auto-switch ONLY on initial load
-                    if (isFirstLoad.current && data.availableMonths && data.availableMonths.length > 0 && data.records.length === 0) {
-                        const latest = data.availableMonths[0]; // Example: "2026-10"
-                        const [latestYear, latestMonth] = latest.split('-');
-                        
-                        if (parseInt(latestYear) !== year || parseInt(latestMonth) !== month) {
-                            isFirstLoad.current = false; // Lock it
-                            if (onMonthChange) onMonthChange(parseInt(latestMonth), parseInt(latestYear)); // Update Parent
-                            setYear(parseInt(latestYear));
-                            setMonth(parseInt(latestMonth));
-                            return; 
-                        }
-                    }
-                    
-                    isFirstLoad.current = false; // Lock it after first try
-                    setRecords(data.records || []);
-                } else {
+                // Auto-switch code removed. Just set records.
+                setRecords(data.records || []);
+            } else {
                     // Add month and year to the biometric API call
                     const [attRes, empRes] = await Promise.all([
                         fetch(API_BASE + `/api/attendance?month=${month}&year=${year}`, { headers }).then(r => r.json()),

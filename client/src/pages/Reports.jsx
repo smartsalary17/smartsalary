@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Loader2, Table, CalendarCheck, FileText, CalendarDays, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { API_BASE, MONTHS } from '../context/workforceShared';
 import AttendanceReport from './AttendanceReport';
@@ -46,6 +46,7 @@ const Reports = () => {
     // Ported states from PdfSummaryReport
     const [selectedSummaryDates, setSelectedSummaryDates] = useState([]);
     const [timeZones, setTimeZones] = useState([{ start: '02:15', end: '02:45' }, { start: '05:00', end: '05:15' }, { start: '05:00', end: '06:30' }]);
+    const isFirstLoad = useRef(true);
 
     const deduplicatedAttRecords = useMemo(() => {
         const map = new Map();
@@ -83,7 +84,24 @@ const Reports = () => {
                 
                 const biometric = transformBiometric(attMap, empList).filter(r => r.date.startsWith(prefix));
                 const whatsapp = att.records || [];
+
                 
+                // 👇 ADD AUTO-SWITCH LOGIC HERE
+                if (source === 'whatsapp' && isFirstLoad.current) {
+                    if (att.availableMonths && att.availableMonths.length > 0 && whatsapp.length === 0) {
+                        const latest = att.availableMonths[0];
+                        const [latestYear, latestMonth] = latest.split('-');
+                        if (parseInt(latestYear) !== year || parseInt(latestMonth) !== month) {
+                            isFirstLoad.current = false;
+                            setMonth(parseInt(latestMonth));
+                            setYear(parseInt(latestYear));
+                            return; // Stop and let the new month trigger the fetch again
+                        }
+                    }
+                    isFirstLoad.current = false;
+                }
+                
+                setMergedAttRecords([...whatsapp, ...biometric]);
                 setMergedAttRecords([...whatsapp, ...biometric]);
                 setPenRecords(pen.records || []);
 
@@ -270,10 +288,6 @@ const Reports = () => {
                         year={year} 
                         source={source} 
                         hideHeader={true} 
-                        onMonthChange={(newMonth, newYear) => {
-                            setMonth(newMonth);
-                            setYear(newYear);
-                        }}
                     />
                 ) : (
                     <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
