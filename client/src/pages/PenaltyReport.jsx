@@ -22,6 +22,18 @@ const PenaltyReport = () => {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
+
+            // 👇 AUTO-SELECT LATEST MONTH LOGIC
+            if (data.availableMonths && data.availableMonths.length > 0 && data.records.length === 0) {
+                const latest = data.availableMonths[0]; // Example: "2026-10"
+                const [latestYear, latestMonth] = latest.split('-');
+                if (parseInt(latestYear) !== year || parseInt(latestMonth) !== month) {
+                    setYear(parseInt(latestYear));
+                    setMonth(parseInt(latestMonth));
+                    return; // Stop here, useEffect will re-run with new month
+                }
+            }
+
             setRecords(data.records || []);
             setAggregated(data.aggregated || []);
         } catch (err) { setError(err.message); }
