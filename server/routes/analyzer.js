@@ -35,23 +35,21 @@ async function autoAppendAliases(messages, mappings, employees) {
 
     for (const msg of messages) {
         const sender = String(msg.sender || '').trim();
-        // Skip phone numbers
         if (!sender || sender.includes('+91') || sender.includes('+')) continue;
         
-        // Try to resolve the sender name to an employee
         const resolvedName = resolver.resolveOriginal(sender);
         if (!resolvedName) continue;
         
-        const emp = employees.find(e => e.name === resolvedName);
+        // 👇 FIX: Use case-insensitive exact match
+        const emp = employees.find(e => e.name.trim().toLowerCase() === resolvedName.trim().toLowerCase());
         if (!emp) continue;
         
-        // Skip if sender is exactly the employee's name
+        // 👇 FIX: Skip if sender is exactly the employee's name (case-insensitive)
         if (sender.toLowerCase() === emp.name.toLowerCase()) continue;
         
         const existingMapping = mappings.find(m => String(m.empId) === String(emp.id));
         const existingAliases = existingMapping ? existingMapping.aliases : [];
         
-        // Skip if sender is already an alias
         if (existingAliases.some(a => a.toLowerCase() === sender.toLowerCase())) continue;
         
         if (!newAliasesMap.has(emp.id)) newAliasesMap.set(emp.id, new Set());

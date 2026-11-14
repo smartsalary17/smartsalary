@@ -94,7 +94,21 @@ router.delete('/:empId/alias/:alias', async (req, res, next) => {
     try {
         const mapping = await NameMapping.findOne({ empId: req.params.empId });
         if (!mapping) return res.status(404).json({ error: 'Mapping not found.' });
-        mapping.aliases = mapping.aliases.filter(a => a !== req.params.alias);
+        
+        // 👇 FIX: Revert Attendance and Penalty records back to unmapped
+        const aliasToRemove = req.params.alias;
+        const unmappedId = `unmapped_${aliasToRemove.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        
+        await AttendanceRecord.updateMany(
+            { name: { $regex: '^' + escapeRegex(aliasToRemove) + '$', $options: 'i' }, employeeId: req.params.empId },
+            { $set: { employeeId: unmappedId } }
+        );
+        await PenaltyRecord.updateMany(
+            { name: { $regex: '^' + escapeRegex(aliasToRemove) + '$', $options: 'i' }, employeeId: req.params.empId },
+            { $set: { employeeId: unmappedId } }
+        );
+
+        mapping.aliases = mapping.aliases.filter(a => a !== aliasToRemove);
         if (mapping.aliases.length === 0) {
             await NameMapping.deleteOne({ _id: mapping._id });
         } else {

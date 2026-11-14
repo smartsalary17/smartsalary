@@ -357,11 +357,14 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
             const cocoByEmployeeId = new Map(
                 cocoRecords
                     .filter(record => normalizeDate(record.date) === date)
-                    .map(record => [
-                        String(record.employeeId || record.empId || '').trim().toLowerCase(), // 👈 Check employeeId
-                        record
-                    ])
-                    .filter(([employeeId]) => employeeId)
+                    .map(record => {
+                        // 👇 Strict ID check: Skip if employeeId is missing or starts with 'unmapped_'
+                        const empId = record.employeeId || record.empId;
+                        if (!empId || String(empId).toLowerCase().startsWith('unmapped_')) return null;
+                        
+                        return [String(empId).trim().toLowerCase(), record];
+                    })
+                    .filter(Boolean) // Removes nulls
             );
 
             const graceMinutes = Number.isFinite(Number(rules?.grace))
@@ -415,7 +418,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                 title: 'COCO sync complete',
                 date,
                 employees: updates.map(({ id, name }) => ({ id, name })),
-                message: `Updated ${updates.length} Week Off, Late, or Absent record${updates.length === 1 ? '' : 's'} from COCO. Review the table and click 'Save All Attendance' to save the changes.`
+                message: `Updated ${updates.length} Week Off or Absent record${updates.length === 1 ? '' : 's'} from COCO. Review the table and click 'Save All Attendance' to save the changes.`
             });
         } catch (e) {
             console.error('Error syncing COCO attendance data:', e);
