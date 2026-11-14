@@ -518,35 +518,27 @@ function getUniqueNames(data, mappings = []) {
     }
     return Array.from(normalizedNames).sort((a, b) => sortByName({ name: a }, { name: b }));
 }
+
 function convertRawDateToISO(rawDate) {
-    if (!rawDate) {
-        return '';
-    }
+    if (!rawDate) return '';
     const value = String(rawDate).trim();
-    if (!value) {
-        return '';
-    }
-    let year;
-    let month;
-    let day;
+    if (!value) return '';
+
+    let year, month, day;
     let match = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
     if (match) {
         year = Number(match[1]);
         month = Number(match[2]);
         day = Number(match[3]);
-    }
-    else {
+    } else {
         match = value.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2}|\d{4})$/);
-        if (!match) {
-            return '';
-        }
+        if (!match) return '';
+
         const first = Number(match[1]);
         const second = Number(match[2]);
         const yearValue = match[3];
-        year =
-            yearValue.length === 2
-                ? 2000 + Number(yearValue)
-                : Number(yearValue);
+        year = yearValue.length === 2 ? 2000 + Number(yearValue) : Number(yearValue);
+
         // Unambiguous DD/MM
         if (first > 12 && second <= 12) {
             day = first;
@@ -557,61 +549,96 @@ function convertRawDateToISO(rawDate) {
             month = first;
             day = second;
         }
-    // Default to DD/MM for Indian format
-    else {
-      day = first;
-      month = second;
+        // Default to DD/MM for Indian format
+        else {
+            day = first;
+            month = second;
+        }
     }
-    }
-    if (year < 2000 ||
-        year > 2100 ||
-        month < 1 ||
-        month > 12 ||
-        day < 1 ||
-        day > 31) {
+
+    if (year < 2000 || year > 2100 || month < 1 || month > 12 || day < 1 || day > 31) {
         return '';
     }
-    const isoDate = `${String(year).padStart(4, '0')}-` +
-        `${String(month).padStart(2, '0')}-` +
-        `${String(day).padStart(2, '0')}`;
+
+    const isoDate = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const date = new Date(`${isoDate}T00:00:00`);
-    if (Number.isNaN(date.getTime())) {
-        return '';
-    }
-    if (date.getFullYear() !== year ||
-        date.getMonth() + 1 !== month ||
-        date.getDate() !== day) {
+    
+    if (Number.isNaN(date.getTime()) || date.getFullYear() !== year || date.getMonth() + 1 !== month || date.getDate() !== day) {
         return '';
     }
     return isoDate;
 }
+
 function normalizeDateSequence(rawDates) {
-    if (!rawDates.length) {
-        return [];
+    if (!rawDates.length) return [];
+
+    // 1. Pre-scan to detect the format based on unambiguous dates & frequency
+    let hasDDMM = false;
+    let hasMMDD = false;
+    const firstPartFreq = {};
+    const secondPartFreq = {};
+
+    for (const rawDate of rawDates) {
+        const value = String(rawDate ?? '').trim();
+        const match = value.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2}|\d{4})$/);
+        if (match) {
+            const first = Number(match[1]);
+            const second = Number(match[2]);
+            
+            if (first > 12 && second <= 12) hasDDMM = true;
+            if (second > 12 && first <= 12) hasMMDD = true;
+
+            // Count frequencies for ambiguous dates (both <= 12)
+            if (first <= 12 && second <= 12) {
+                firstPartFreq[first] = (firstPartFreq[first] || 0) + 1;
+                secondPartFreq[second] = (secondPartFreq[second] || 0) + 1;
+            }
+        }
     }
+
+    let preferMMDD = false;
+    
+    if (hasMMDD && !hasDDMM) {
+        preferMMDD = true;
+    } else if (hasDDMM && !hasMMDD) {
+        preferMMDD = false;
+    } else {
+        // If no unambiguous dates found, use frequency logic
+        const maxFirstFreq = Math.max(0, ...Object.values(firstPartFreq));
+        const maxSecondFreq = Math.max(0, ...Object.values(secondPartFreq));
+        
+        if (maxFirstFreq > maxSecondFreq) {
+            // First part repeats more, so it's likely the month (MM/DD)
+            preferMMDD = true;
+        } else if (maxSecondFreq > maxFirstFreq) {
+            // Second part repeats more, so it's likely the month (DD/MM)
+            preferMMDD = false;
+        }
+    }
+
     const result = [];
     let previousISO = '';
+
     for (const rawDate of rawDates) {
         const value = String(rawDate ?? '').trim();
         if (!value) {
             result.push('');
             continue;
         }
+
         const match = value.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2}|\d{4})$/);
         if (!match) {
             const iso = convertRawDateToISO(value);
             result.push(iso);
-            if (iso) {
-                previousISO = iso;
-            }
+            if (iso) previousISO = iso;
             continue;
         }
+
         const first = Number(match[1]);
         const second = Number(match[2]);
         const yearValue = match[3];
-        const year = yearValue.length === 2
-            ? 2000 + Number(yearValue)
-            : Number(yearValue);
+        const year = yearValue.length === 2 ? 2000 + Number(yearValue) : Number(yearValue);
+
         // Clearly DD/MM
         if (first > 12 && second <= 12) {
             const iso = `${year}-${String(second).padStart(2, '0')}-${String(first).padStart(2, '0')}`;
@@ -619,6 +646,7 @@ function normalizeDateSequence(rawDates) {
             previousISO = iso;
             continue;
         }
+
         // Clearly MM/DD
         if (second > 12 && first <= 12) {
             const iso = `${year}-${String(first).padStart(2, '0')}-${String(second).padStart(2, '0')}`;
@@ -626,43 +654,57 @@ function normalizeDateSequence(rawDates) {
             previousISO = iso;
             continue;
         }
-        // Ambiguous date:
-        // 09/10/2026 can mean:
-        // MM/DD -> 2026-09-10
-        // DD/MM -> 2026-10-09
+
+        // Ambiguous date
         const mmdd = `${year}-${String(first).padStart(2, '0')}-${String(second).padStart(2, '0')}`;
         const ddmm = `${year}-${String(second).padStart(2, '0')}-${String(first).padStart(2, '0')}`;
+
         if (previousISO) {
             const previousDate = new Date(`${previousISO}T00:00:00`);
             const mmddDate = new Date(`${mmdd}T00:00:00`);
             const ddmmDate = new Date(`${ddmm}T00:00:00`);
-            const mmddDiff = mmddDate.getTime() -
-                previousDate.getTime();
-            const ddmmDiff = ddmmDate.getTime() -
-                previousDate.getTime();
-            // Prefer the interpretation that continues
-            // naturally from the previous date.
-            if (mmddDiff >= 0 &&
-                mmddDiff <= 31 * 24 * 60 * 60 * 1000 &&
-                (ddmmDiff < 0 ||
-                    mmddDiff <= ddmmDiff)) {
-                result.push(mmdd);
-                previousISO = mmdd;
-                continue;
-            }
-            if (ddmmDiff >= 0 &&
-                ddmmDiff <= 31 * 24 * 60 * 60 * 1000) {
-                result.push(ddmm);
-                previousISO = ddmm;
-                continue;
+
+            const mmddDiff = mmddDate.getTime() - previousDate.getTime();
+            const ddmmDiff = ddmmDate.getTime() - previousDate.getTime();
+
+            if (preferMMDD) {
+                if (mmddDiff >= 0 && mmddDiff <= 31 * 24 * 60 * 60 * 1000) {
+                    result.push(mmdd);
+                    previousISO = mmdd;
+                    continue;
+                }
+                if (ddmmDiff >= 0 && ddmmDiff <= 31 * 24 * 60 * 60 * 1000) {
+                    result.push(ddmm);
+                    previousISO = ddmm;
+                    continue;
+                }
+            } else {
+                if (ddmmDiff >= 0 && ddmmDiff <= 31 * 24 * 60 * 60 * 1000) {
+                    result.push(ddmm);
+                    previousISO = ddmm;
+                    continue;
+                }
+                if (mmddDiff >= 0 && mmddDiff <= 31 * 24 * 60 * 60 * 1000) {
+                    result.push(mmdd);
+                    previousISO = mmdd;
+                    continue;
+                }
             }
         }
-// Fallback to DD/MM
-result.push(ddmm);
-previousISO = ddmm;
+
+        // Final fallback
+        if (preferMMDD) {
+            result.push(mmdd);
+            previousISO = mmdd;
+        } else {
+            result.push(ddmm);
+            previousISO = ddmm;
+        }
     }
+
     return result;
 }
+
 function formatDateDDMMYY(rawDate) {
     if (!rawDate) {
         return '';

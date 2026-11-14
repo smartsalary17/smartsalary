@@ -9,6 +9,7 @@ const { convertAttendance, convertPenalty } = require('../utils/cocoFormat');
 const { parseWhatsAppChat } = require('../parsers/whatsappParser');
 const { parseAttendance } = require('../parsers/attendanceParser');
 const { parsePenalty } = require('../parsers/penaltyParser');
+const { normalizeDateSequence } = require('../parsers/attendanceUtils');
 
 const router = express.Router();
 
@@ -67,17 +68,28 @@ router.post('/', async (req, res, next) => {
         }));
 
         let messages, attendanceData, penaltyData;
+        
         try {
             messages = parseWhatsAppChat(text);
             if (!messages || messages.length === 0) {
                 return res.status(422).json({ error: 'No valid WhatsApp messages found.' });
             }
+
+            const rawDates = messages.map(m => m.date);
+            const normalizedDates = normalizeDateSequence(rawDates);
+            messages.forEach((m, i) => {
+                m.date = normalizedDates[i];
+            });
+
             attendanceData = parseAttendance(messages, undefined, employeeNames, mappingPayload);
             penaltyData = parsePenalty(messages, undefined, employeeNames, mappingPayload);
+            
         } catch (parseErr) {
+            // 👇 FIX: Properly close the catch block here
             return res.status(500).json({ error: 'Parser failed: ' + parseErr.message });
         }
 
+        // 👇 THIS CODE SHOULD BE OUTSIDE THE TRY-CATCH
         const attendanceRecords = convertAttendance(attendanceData, mappings);
         const penaltyRecords = convertPenalty(penaltyData, mappings);
 
@@ -95,7 +107,9 @@ router.post('/', async (req, res, next) => {
             savedPenalty,
             meta: { rows: messages.length, attendanceRows: attendanceData.length, penaltyRows: penaltyData.length }
         });
-    } catch (e) { next(e); }
+    } catch (e) { 
+        next(e); 
+    }
 });
 
 // DELETE route (Attendance only, Penalty untouched)
