@@ -70,6 +70,8 @@ const Reports = () => {
         return Array.from(map.values());
     }, [attRecords]);
 
+    const [allWhatsappNames, setAllWhatsappNames] = useState([]); // 👈 Add state for names
+
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
@@ -78,49 +80,48 @@ const Reports = () => {
                 const headers = token ? { Authorization: 'Bearer ' + token } : {};
                 const prefix = year + '-' + String(month).padStart(2, '0') + '-';
 
-                const empRes = await fetch(API_BASE + '/api/employees', { headers }).then(r => r.json());
-                const empList = Array.isArray(empRes) ? empRes : [];
-                setEmployees(empList);
+                // Fetch employees only once if not loaded
+                if (employees.length === 0) {
+                    const empRes = await fetch(API_BASE + '/api/employees', { headers }).then(r => r.json());
+                    setEmployees(Array.isArray(empRes) ? empRes : []);
+                }
 
-                const [att, pen, attMap] = await Promise.all([
-                    fetch(API_BASE + '/api/attendance-report?month=' + month + '&year=' + year, { headers }).then(r => r.json()),
-                    fetch(API_BASE + '/api/penalty-report?month=' + month + '&year=' + year, { headers }).then(r => r.json()),
-                    fetch(API_BASE + '/api/attendance', { headers }).then(r => r.json())
-                ]);
-                
-                const biometric = transformBiometric(attMap, empList).filter(r => r.date.startsWith(prefix));
-                const whatsapp = att.records || [];
+                if (source === 'whatsapp') {
+                    const [att, pen] = await Promise.all([
+                        fetch(API_BASE + '/api/attendance-report?month=' + month + '&year=' + year, { headers }).then(r => r.json()),
+                        fetch(API_BASE + '/api/penalty-report?month=' + month + '&year=' + year, { headers }).then(r => r.json())
+                    ]);
+                    
+                    const whatsapp = att.records || [];
+                    setAllWhatsappNames(att.distinctNames || []); // Set all names
 
-                
-                // 👇 ADD AUTO-SWITCH LOGIC HERE
-                if (source === 'whatsapp' && isFirstLoad.current) {
-                    if (att.availableMonths && att.availableMonths.length > 0 && whatsapp.length === 0) {
+                    if (isFirstLoad.current && att.availableMonths && att.availableMonths.length > 0 && whatsapp.length === 0) {
                         const latest = att.availableMonths[0];
                         const [latestYear, latestMonth] = latest.split('-');
                         if (parseInt(latestYear) !== year || parseInt(latestMonth) !== month) {
                             isFirstLoad.current = false;
                             setMonth(parseInt(latestMonth));
                             setYear(parseInt(latestYear));
-                            return; // Stop and let the new month trigger the fetch again
+                            return;
                         }
                     }
                     isFirstLoad.current = false;
-                }
-                
-                setMergedAttRecords([...whatsapp, ...biometric]);
-                setMergedAttRecords([...whatsapp, ...biometric]);
-                setPenRecords(pen.records || []);
-
-                if (source === 'whatsapp') {
+                    
                     setAttRecords(whatsapp);
+                    setPenRecords(pen.records || []);
                 } else {
+                    const [attMap] = await Promise.all([
+                        fetch(API_BASE + `/api/attendance?month=${month}&year=${year}`, { headers }).then(r => r.json()),
+                    ]);
+                    const biometric = transformBiometric(attMap, employees).filter(r => r.date.startsWith(prefix));
                     setAttRecords(biometric);
+                    setPenRecords([]); // Clear penalty if biometric
                 }
             } catch (err) { console.error(err); }
             finally { setLoading(false); }
         };
         fetchData();
-    }, [month, year, source]);
+    }, [month, year, source, employees.length]);
 
     useEffect(() => {
         if (employees.length && !employees.some(e => String(e.id) === selectedEmployee)) {
@@ -141,6 +142,25 @@ const Reports = () => {
 
     const selectedEmpObj = useMemo(() => employees.find(e => String(e.id) === selectedEmployee), [employees, selectedEmployee]);
 
+    const dropdownEmployees = useMemo(() => {
+        if (source === 'biometric') return employees;
+        
+        const map = new Map();
+        
+        // Add all names that exist in WhatsApp records (mapped or unmapped)
+        allWhatsappNames.forEach(name => {
+            // Check if this name belongs to a mapped employee
+            const mappedEmp = employees.find(e => e.name.toLowerCase() === name.toLowerCase());
+            if (mappedEmp) {
+                map.set(String(mappedEmp.id), { id: String(mappedEmp.id), name: mappedEmp.name, isMapped: true });
+            } else {
+                map.set(name, { id: name, name: name, isMapped: false });
+            }
+        });
+        
+        return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }, [employees, allWhatsappNames, source]);
+    
     const nameWiseData = useMemo(() => {
         if (!selectedEmpObj) return [];
         const empId = String(selectedEmpObj.id);
@@ -150,13 +170,39 @@ const Reports = () => {
             .sort((a, b) => b.date.localeCompare(a.date));
     }, [attRecords, selectedEmpObj]);
 
-        const dateWiseData = useMemo(() => {
+    const dateWiseData = useMemo(() => {
         if (!selectedDate) return [];
-        const filtered = deduplicatedAttRecords.filter(r => r.date === selectedDate);
-        if (!dateSearch.trim()) return filtered;
+        
+        // Start with all employees (biometric) or all whatsapp names
+        const baseList = source === 'biometric' ? employees : dropdownEmployees;
+        
+        const mapped = baseList.map(emp => {
+            // Find record for this specific date
+            const record = deduplicatedAttRecords.find(r => 
+                r.date === selectedDate && 
+                (r.employeeId ? String(r.employeeId) === String(emp.id) : r.name === emp.name)
+            );
+            
+            if (record) return { ...record, empId: emp.id, name: emp.name };
+            
+            // If no record, return empty state
+            return {
+                date: selectedDate,
+                employeeId: emp.id,
+                name: emp.name,
+                status: 'no-record',
+                checkIn: '-',
+                checkOut: '-',
+                halfDay: 'No',
+                permission: '-',
+                weekOff: 'No'
+            };
+        });
+        
+        if (!dateSearch.trim()) return mapped;
         const s = dateSearch.toLowerCase();
-        return filtered.filter(r => r.name.toLowerCase().includes(s) || (r.employeeId && r.employeeId.toLowerCase().includes(s)));
-    }, [deduplicatedAttRecords, selectedDate, dateSearch]);
+        return mapped.filter(r => r.name.toLowerCase().includes(s) || (r.employeeId && String(r.employeeId).toLowerCase().includes(s)));
+    }, [deduplicatedAttRecords, selectedDate, dateSearch, employees, dropdownEmployees, source]);
 
     const dailyData = useMemo(() => {
         if (!selectedDate) return [];
@@ -233,8 +279,12 @@ const Reports = () => {
                 ) : tab === 'name' ? (
                     <>
                         <select value={selectedEmployee} onChange={(e) => setSelectedEmployee(e.target.value)} style={{ marginBottom: '1rem', maxWidth: '300px' }}>
-                            {employees.length === 0 && <option value="">No employees in master</option>}
-                            {employees.map(e => <option key={e.id} value={String(e.id)}>{e.id} — {e.name}</option>)}
+                            {dropdownEmployees.length === 0 && <option value="">No records found for this month</option>}
+                            {dropdownEmployees.map(e => (
+                                <option key={e.id} value={String(e.id)}>
+                                    {e.isMapped === false ? e.name : `${e.id} — ${e.name}`}
+                                </option>
+                            ))}
                         </select>
                         <table>
                             <thead><tr><th>Date</th><th>Check In</th><th>Check Out</th><th style={{ textAlign: 'center' }}>Half Day</th><th style={{ textAlign: 'center' }}>Permission</th><th style={{ textAlign: 'center' }}>Week Off</th><th style={{ textAlign: 'center' }}>Absent</th></tr></thead>
@@ -264,7 +314,14 @@ const Reports = () => {
                 ) : tab === 'date' ? (
                     <>
                         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} min={allDates[allDates.length - 1]} max={allDates[0]} style={{ maxWidth: '200px' }} />
+
+                            <input 
+                                type="date" 
+                                value={selectedDate} 
+                                onChange={(e) => setSelectedDate(e.target.value)} 
+                                max={new Date().toISOString().split('T')[0]} 
+                                style={{ maxWidth: '200px' }} 
+                            />
                             <div style={{ position: 'relative', flex: 1, minWidth: '200px', maxWidth: '400px' }}>
                                 <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                                 <input type="text" placeholder="Search employee..." value={dateSearch} onChange={(e) => setDateSearch(e.target.value)} style={{ paddingLeft: '2.25rem', width: '100%' }} />
@@ -276,8 +333,8 @@ const Reports = () => {
                                 {dateWiseData.map((r, i) => (
                                     <tr key={i}>
                                         <td><strong>{r.name}</strong></td>
-                                        <td style={{ color: 'var(--success)' }}>{r.status === 'absent' ? '-' : (r.checkIn || '-')}</td>
-                                        <td style={{ color: 'var(--danger)' }}>{r.status === 'absent' ? '-' : (r.checkOut || '-')}</td>
+                                        <td style={{ color: 'var(--success)' }}>{r.status === 'absent' || r.status === 'no-record' ? '-' : (r.checkIn || '-')}</td>
+                                        <td style={{ color: 'var(--danger)' }}>{r.status === 'absent' || r.status === 'no-record' ? '-' : (r.checkOut || '-')}</td>
                                         <td style={{ textAlign: 'center' }}>{r.halfDay === 'Yes' ? 'Yes' : '—'}</td>
                                         <td style={{ textAlign: 'center' }}>{r.permission && r.permission !== '-' ? 'Yes' : '—'}</td>
                                         <td style={{ textAlign: 'center' }}>{r.weekOff === 'Yes' ? 'Yes' : '—'}</td>
@@ -349,27 +406,23 @@ const Reports = () => {
                                     <tbody>
                                         {(() => {
                                             const map = new Map();
-                                            for (const emp of employees) {
-                                                map.set(String(emp.id), { name: emp.name, empId: emp.id, c1: 0, c2: 0, c3: 0, perm: 0, hd: 0, wo: 0 });
-                                            }
-                                            for (const r of mergedAttRecords) {
-                                                if (!selectedSummaryDates.includes(r.date)) continue;
-                                                const key = r.employeeId ? String(r.employeeId) : ('name:' + r.name);
-                                                const s = map.get(key) || { name: r.name, empId: r.employeeId || '-', c1: 0, c2: 0, c3: 0, perm: 0, hd: 0, wo: 0 };
-                                                
-                                                if (r.checkIn) {
-                                                    const toMins = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
-                                                    const tm = toMins(r.checkIn);
-                                                    if (tm >= toMins(timeZones[0].start) && tm <= toMins(timeZones[0].end)) s.c1++;
-                                                    if (tm >= toMins(timeZones[1].start) && tm <= toMins(timeZones[1].end)) s.c2++;
-                                                    if (tm >= toMins(timeZones[2].start) && tm <= toMins(timeZones[2].end)) s.c3++;
+                                            
+                                            // Prepopulate with all names
+                                            if (source === 'biometric') {
+                                                for (const emp of employees) {
+                                                    map.set(String(emp.id), { name: emp.name, empId: emp.id, c1: 0, c2: 0, c3: 0, perm: 0, hd: 0, wo: 0 });
                                                 }
-                                                if (r.permission && r.permission !== '-') s.perm++;
-                                                if (r.halfDay === 'Yes') s.hd++;
-                                                if (r.weekOff === 'Yes') s.wo++;
-                                                map.set(key, s);
+                                            } else {
+                                                // For WhatsApp, use dropdownEmployees (includes unmapped names)
+                                                for (const emp of dropdownEmployees) {
+                                                    map.set(String(emp.id), { name: emp.name, empId: emp.isMapped ? emp.id : '-', c1: 0, c2: 0, c3: 0, perm: 0, hd: 0, wo: 0 });
+                                                }
                                             }
-                                            return Array.from(map.values()).map(row => (
+                                            
+                                            // Sort by Name for better readability
+                                            return Array.from(map.values())
+                                                .sort((a, b) => a.name.localeCompare(b.name))
+                                                .map(row => (
                                                 <tr key={row.empId + row.name}>
                                                     <td style={{ padding: '0.5rem', border: '1px solid var(--border-color)' }}>{row.empId}</td>
                                                     <td style={{ padding: '0.5rem', border: '1px solid var(--border-color)', fontWeight: 'bold' }}>{row.name}</td>

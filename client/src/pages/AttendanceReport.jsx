@@ -61,6 +61,8 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
         d.setDate(d.getDate() + days);
         return d.toISOString().split('T')[0];
     };
+
+
     
     useEffect(() => {
         if (propSource) setSource(propSource);
@@ -101,6 +103,10 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
 
     const dates = useMemo(() => Array.from(new Set(records.map(r => r.date))).sort().reverse(), [records]);
     const activeDate = selectedDate || dates[0] || '';
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const nextDateStr = shiftDate(activeDate, 1);
+    const isFutureDate = nextDateStr > todayStr;
 
     const dayRecords = useMemo(() => {
         if (!activeDate) return [];
@@ -151,10 +157,10 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                                 <ChevronLeft size={16} />
                             </button>
                             
-                            <input type="date" value={activeDate} onChange={(e) => handleDateChange(e.target.value)} min={dates[dates.length - 1]} max={dates[0]} style={{ padding: '0.5rem', width: 'auto' }} />
+                            <input type="date" value={activeDate} onChange={(e) => handleDateChange(e.target.value)} max={todayStr} style={{ padding: '0.5rem', width: 'auto' }} />
                             
                             {/* 👇 Next Button Fixed */}
-                            <button className="small-btn secondary-btn" onClick={() => handleDateChange(shiftDate(activeDate, 1))} style={{ width: 'auto' }}>
+                            <button className="small-btn secondary-btn" onClick={() => handleDateChange(nextDateStr)} disabled={isFutureDate} style={{ width: 'auto', opacity: isFutureDate ? 0.5 : 1, cursor: isFutureDate ? 'not-allowed' : 'pointer' }}>
                                 <ChevronRight size={16} />
                             </button>
                             
@@ -176,7 +182,12 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                         <div style={{ overflowX: 'auto', maxHeight: '600px', overflowY: 'auto', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
                             <table>
                                 <thead style={{ position: 'sticky', top: 0, background: 'var(--sidebar-bg)', zIndex: 1 }}>
-                                    <tr><th>Employee</th><th>Check In</th><th>Check Out</th><th style={{ textAlign: 'center' }}>Half Day</th><th style={{ textAlign: 'center' }}>Permission</th><th style={{ textAlign: 'center' }}>Week Off</th><th style={{ textAlign: 'center' }}>Absent</th></tr>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Check In</th>
+                                        <th>Check Out</th>
+                                        <th style={{ textAlign: 'center' }}>Status</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                     {dayRecords.map((r, i) => (
@@ -184,10 +195,17 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                                             <td><strong>{r.name}</strong>{r.employeeId && <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginLeft: '6px' }}>({r.employeeId})</span>}</td>
                                             <td style={{ color: 'var(--success)' }}>{r.checkIns?.length ? r.checkIns.join(', ') : (r.checkIn || '-')}</td>
                                             <td style={{ color: 'var(--danger)' }}>{r.checkOuts?.length ? r.checkOuts.join(', ') : (r.checkOut || '-')}</td>
-                                            <td style={{ textAlign: 'center' }}>{r.halfDay === 'Yes' ? <span className="pill p-amber">HD</span> : '—'}</td>
-                                            <td style={{ textAlign: 'center' }}>{r.permission && r.permission !== '-' ? <span className="pill p-blue">PERM</span> : '—'}</td>
-                                            <td style={{ textAlign: 'center' }}>{r.weekOff === 'Yes' ? <span className="pill p-sl">WO</span> : '—'}</td>
-                                            <td style={{ textAlign: 'center' }}>{r.status === 'absent' ? <span className="pill p-red">A</span> : '—'}</td>
+                                        <td style={{ textAlign: 'center' }}>
+                                            <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                                                {r.status === 'absent' && <span className="pill p-red">Absent</span>}
+                                                {r.status === 'weekoff' && <span className="pill p-sl">Week Off</span>}
+                                                {r.status === 'present' && <span className="pill p-green">Present</span>}
+                                                {r.status === 'late' && <span className="pill p-amber">Late</span>}
+                                                {r.halfDay === 'Yes' && <span className="pill p-amber">Half Day</span>}
+                                                {r.permission && r.permission !== '-' && <span className="pill p-blue">Permission</span>}
+                                                {!r.status && r.halfDay !== 'Yes' && (!r.permission || r.permission === '-') && '—'}
+                                            </div>
+                                        </td>
                                         </tr>
                                     ))}
                                     {dayRecords.length === 0 && <tr><td colSpan={7} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No records on {activeDate}</td></tr>}

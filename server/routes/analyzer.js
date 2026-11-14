@@ -9,7 +9,7 @@ const { convertAttendance, convertPenalty } = require('../utils/cocoFormat');
 const { parseWhatsAppChat } = require('../parsers/whatsappParser');
 const { parseAttendance } = require('../parsers/attendanceParser');
 const { parsePenalty } = require('../parsers/penaltyParser');
-const { normalizeDateSequence } = require('../parsers/attendanceUtils');
+const { normalizeDateSequence, createNameResolver } = require('../parsers/attendanceUtils');
 
 const router = express.Router();
 
@@ -26,6 +26,63 @@ async function bulkUpsertAttendance(records) {
     }));
     const result = await AttendanceRecord.bulkWrite(ops, { ordered: false });
     return result.upsertedCount + result.modifiedCount;
+}
+
+async function autoAppendAliases(messages, mappings, employees) {
+    const allNames = employees.map(e => e.name).filter(Boolean);
+    const resolver = createNameResolver(allNames, mappings);
+    const newAliasesMap = new Map();
+
+    for (const msg of messages) {
+        const sender = String(msg.sender || '').trim();
+        // Skip phone numbers
+        if (!sender || sender.includes('+91') || sender.includes('+')) continue;
+        
+        // Try to resolve the sender name to an employee
+        const resolvedName = resolver.resolveOriginal(sender);
+        if (!resolvedName) continue;
+        
+        const emp = employees.find(e => e.name === resolvedName);
+        if (!emp) continue;
+        
+        // Skip if sender is exactly the employee's name
+        if (sender.toLowerCase() === emp.name.toLowerCase()) continue;
+        
+        const existingMapping = mappings.find(m => String(m.empId) === String(emp.id));
+        const existingAliases = existingMapping ? existingMapping.aliases : [];
+        
+        // Skip if sender is already an alias
+        if (existingAliases.some(a => a.toLowerCase() === sender.toLowerCase())) continue;
+        
+        if (!newAliasesMap.has(emp.id)) newAliasesMap.set(emp.id, new Set());
+        newAliasesMap.get(emp.id).add(sender);
+    }
+
+    // Save new aliases to DB
+    for (const [empId, aliases] of newAliasesMap.entries()) {
+        const emp = employees.find(e => String(e.id) === String(empId));
+        let mapping = await NameMapping.findOne({ empId: String(empId) });
+        
+        if (!mapping) {
+            mapping = new NameMapping({
+                empId: String(empId),
+                employeeName: emp.name,
+                aliases: []
+            });
+        }
+        
+        let changed = false;
+        aliases.forEach(alias => {
+            if (!mapping.aliases.includes(alias)) {
+                mapping.aliases.push(alias);
+                changed = true;
+            }
+        });
+        
+        if (changed) {
+            await mapping.save({ validateBeforeSave: false });
+        }
+    }
 }
 
 async function bulkReplacePenalty(records) {
@@ -92,7 +149,8 @@ router.post('/', async (req, res, next) => {
         // 👇 THIS CODE SHOULD BE OUTSIDE THE TRY-CATCH
         const attendanceRecords = convertAttendance(attendanceData, mappings);
         const penaltyRecords = convertPenalty(penaltyData, mappings);
-
+        await autoAppendAliases(messages, mappings, employees);
+        
         const savedAttendance = await bulkUpsertAttendance(attendanceRecords);
         const savedPenalty = await bulkReplacePenalty(penaltyRecords);
 
