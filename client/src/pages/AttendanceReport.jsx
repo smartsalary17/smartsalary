@@ -7,17 +7,21 @@ function transformBiometric(attendanceMap, employees) {
     for (const [date, empMap] of Object.entries(attendanceMap || {})) {
         for (const [empId, data] of Object.entries(empMap || {})) {
             if (!data?.status) continue;
+            
+            // FIX: Find the employee. If not in master list, skip this record.
             const emp = employees.find(e => String(e.id) === String(empId));
+            if (!emp) continue; 
+
             records.push({
                 date,
                 employeeId: empId,
-                name: emp?.name || 'Employee ' + empId,
+                name: emp.name, // Now we can safely use emp.name directly
                 status: data.status,
                 checkIn: data.time || '',
                 checkOut: data.outTime || '',
                 checkIns: data.time ? [data.time] : [],
                 checkOuts: data.outTime ? [data.outTime] : [],
-                workTime: data.workTime || '',
+                workTime: data.workTime || '', // (Add this if your version has it)
                 halfDay: data.status === 'half-day' ? 'Yes' : 'No',
                 permission: '-',
                 weekOff: data.status === 'weekoff' ? 'Yes' : 'No',
