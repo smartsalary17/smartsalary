@@ -124,6 +124,13 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
             records.forEach(r => {
                 const isUnmapped = !r.employeeId || String(r.employeeId).startsWith('unmapped_');
                 const key = isUnmapped ? r.name : String(r.employeeId);
+                
+                // 👇 FIX: If the unmapped record's name matches an employee, skip it (it's a duplicate)
+                if (isUnmapped) {
+                    const isAlreadyMapped = employees.some(e => e.name.toLowerCase() === r.name.toLowerCase());
+                    if (isAlreadyMapped) return; 
+                }
+
                 if (!map.has(key)) {
                     map.set(key, { id: key, name: r.name, isMapped: !isUnmapped });
                 }

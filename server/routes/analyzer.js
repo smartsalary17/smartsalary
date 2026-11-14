@@ -83,14 +83,15 @@ async function autoAppendAliases(messages, mappings, employees) {
         }
 
         // 👇 ADD THIS: Update existing Attendance and Penalty records instantly
+        // 👇 FIX: Update both employeeId and name in existing records
         for (const alias of aliases) {
             await AttendanceRecord.updateMany(
                 { name: { $regex: `^${escapeRegex(alias)}$`, $options: 'i' } },
-                { $set: { employeeId: String(empId) } }
+                { $set: { employeeId: String(empId), name: emp.name } } // Added name here
             );
             await PenaltyRecord.updateMany(
                 { name: { $regex: `^${escapeRegex(alias)}$`, $options: 'i' } },
-                { $set: { employeeId: String(empId) } }
+                { $set: { employeeId: String(empId), name: emp.name } } // Added name here
             );
         }
     }

@@ -15,6 +15,7 @@ const NameMappings = () => {
     const [deleteTarget, setDeleteTarget] = useState(null);
     const [editingAlias, setEditingAlias] = useState(null);
     const [editAliasValue, setEditAliasValue] = useState('');
+    const [search, setSearch] = useState('');
 
     const fetchData = async () => {
         setLoading(true);
@@ -131,7 +132,16 @@ const NameMappings = () => {
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
                     Map WhatsApp saved names to official SMART employees. Select an Analyzer name from the dropdown to easily map unmapped records.
                 </p>
-
+                {/* 👇 Add Search Box here */}
+                <div style={{ marginBottom: '1rem' }}>
+                    <input 
+                        type="text" 
+                        placeholder="Search mappings by employee name or ID..." 
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        style={{ width: '100%', maxWidth: '400px' }}
+                    />
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.75rem', marginBottom: '1.5rem' }}>
                     <div className="input-group">
                         <label>Employee (ID - Name)</label>
@@ -178,12 +188,20 @@ const NameMappings = () => {
                     <table>
                         <thead><tr><th>Employee</th><th>Aliases</th></tr></thead>
                         <tbody>
-                            {sortedMappings.map(m => {
-                                const emp = employees.find(e => String(e.id) === String(m.empId));
-                                const displayName = m.employeeName || emp?.name || 'Unknown';
-                                
-                                return (
-                                <tr key={m.empId}>
+                            {sortedMappings
+                                .filter(m => {
+                                    if (!search.trim()) return true;
+                                    const emp = employees.find(e => String(e.id) === String(m.empId));
+                                    const displayName = m.employeeName || emp?.name || '';
+                                    const s = search.toLowerCase();
+                                    return String(m.empId).toLowerCase().includes(s) || displayName.toLowerCase().includes(s);
+                                })
+                                .map(m => {
+                                    const emp = employees.find(e => String(e.id) === String(m.empId));
+                                    const displayName = m.employeeName || emp?.name || 'Unknown';
+                                    
+                                    return (
+                                    <tr key={m.empId}>
                                     <td>
                                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                                             <strong style={{ color: 'var(--primary)' }}>{m.empId} - {displayName}</strong>
