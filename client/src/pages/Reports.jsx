@@ -351,6 +351,8 @@ const Reports = () => {
                         year={year} 
                         source={source} 
                         hideHeader={true} 
+                        employees={employees}
+                        allWhatsappNames={allWhatsappNames}
                         onMonthChange={(newMonth, newYear) => {
                             setMonth(newMonth);
                             setYear(newYear);

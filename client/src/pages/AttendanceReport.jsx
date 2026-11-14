@@ -32,7 +32,7 @@ function transformBiometric(attendanceMap, employees) {
     return records;
 }
 
-const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource, hideHeader = false, onMonthChange }) => {
+const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource, hideHeader = false, onMonthChange, employees = [], allWhatsappNames = [] }) => {
     const now = new Date();
     const [source, setSource] = useState(propSource || 'biometric');
     const [month, setMonth] = useState(propMonth || now.getMonth() + 1);
@@ -110,10 +110,55 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
 
     const dayRecords = useMemo(() => {
         if (!activeDate) return [];
-        const filtered = records.filter(r => r.date === activeDate);
-        if (!search.trim()) return filtered;
-        return filtered.filter(r => r.name.toLowerCase().includes(search.toLowerCase()));
-    }, [records, activeDate, search]);
+        
+        let baseList = [];
+        if (source === 'biometric') {
+            baseList = employees.map(emp => ({ id: emp.id, name: emp.name, isMapped: true }));
+        } else {
+            const map = new Map();
+            allWhatsappNames.forEach(name => {
+                const mappedEmp = employees.find(e => e.name.toLowerCase() === name.toLowerCase());
+                if (mappedEmp) map.set(String(mappedEmp.id), { id: String(mappedEmp.id), name: mappedEmp.name, isMapped: true });
+                else map.set(name, { id: name, name: name, isMapped: false });
+            });
+            // Include any records not in allWhatsappNames
+            records.forEach(r => {
+                const isUnmapped = !r.employeeId || String(r.employeeId).startsWith('unmapped_');
+                const key = isUnmapped ? r.name : String(r.employeeId);
+                if (!map.has(key)) {
+                    map.set(key, { id: key, name: r.name, isMapped: !isUnmapped });
+                }
+            });
+            baseList = Array.from(map.values());
+        }
+
+        let combined = baseList.map(emp => {
+            const rec = records.find(r => 
+                r.date === activeDate && 
+                (String(r.employeeId) === String(emp.id) || r.name === emp.name)
+            );
+
+            if (rec) {
+                return { ...rec, name: emp.name, employeeId: emp.isMapped ? emp.id : '-' };
+            }
+
+            return {
+                date: activeDate,
+                employeeId: emp.isMapped ? emp.id : '-',
+                name: emp.name,
+                status: 'no-record',
+                checkIn: '-',
+                checkOut: '-',
+                halfDay: 'No',
+                permission: '-',
+                weekOff: 'No'
+            };
+        });
+
+        if (!search.trim()) return combined;
+        const s = search.toLowerCase();
+        return combined.filter(r => r.name.toLowerCase().includes(s));
+    }, [records, activeDate, search, employees, allWhatsappNames, source]);
 
     const summary = useMemo(() => ({
         total: dayRecords.length,
