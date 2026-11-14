@@ -5,10 +5,15 @@ import { FileText, Lock, Unlock } from 'lucide-react';
 import { API_BASE } from '../context/workforceShared';
 
 const normalizeDate = (value) => {
-    const date = String(value || '').trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return date;
+    const dateStr = String(value || '').trim();
+    if (!dateStr) return '';
+    
+    // 👇 Handle ISO strings
+    if (dateStr.includes('T')) return dateStr.split('T')[0];
+    
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
 
-    const match = date.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/);
+    const match = dateStr.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2}|\d{4})$/);
     if (!match) return '';
 
     const [, first, second, rawYear] = match;
@@ -16,9 +21,7 @@ const normalizeDate = (value) => {
         ? Number(rawYear) <= 49 ? `20${rawYear}` : `19${rawYear}`
         : rawYear;
 
-    // COCO slash dates use month/day/year, e.g. 9/22/26.
-    // Preserve the existing day/month inference for dot and hyphen dates.
-    const isSlashDate = date.includes('/');
+    const isSlashDate = dateStr.includes('/');
     const month = isSlashDate
         ? Number(first)
         : Number(first) > 12 ? Number(second) : Number(first);
@@ -37,7 +40,6 @@ const normalizeDate = (value) => {
 
     return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 };
-
 const normalizeTime = (value) => {
     const match = String(value || '').trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(am|pm)?$/i);
     if (!match) return '';
@@ -293,7 +295,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
     };
 
     const handleCocoSync = () => {
-        const syncableStatuses = new Set(['weekoff', 'late', 'absent']);
+        const syncableStatuses = new Set(['weekoff', 'absent']);
         const eligibleEmployees = tempBulk
             .filter(employee => syncableStatuses.has(employee.status?.trim().toLowerCase()))
             .map(employee => {
@@ -310,7 +312,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
             title: 'Confirm COCO sync',
             date: selectedDate,
             employees: eligibleEmployees,
-            message: 'COCO attendance will be checked for Week Off, Late, and Absent employees.'
+            message: 'COCO attendance will be checked for Week Off and Absent employees.'
         });
     };
 
@@ -323,7 +325,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
         setIsCocoSyncing(true);
         try {
             const token = localStorage.getItem('wf_auth_token');
-            const res = await fetch(`${API_BASE}/api/coco-attendance/preview`, {
+            const res = await fetch(`${API_BASE}/api/coco-attendance/preview?date=${date}`, {
                 method: 'GET',
                 cache: 'no-store',
                 headers: {
@@ -355,7 +357,10 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
             const cocoByEmployeeId = new Map(
                 cocoRecords
                     .filter(record => normalizeDate(record.date) === date)
-                    .map(record => [String(record.empId || '').trim().toLowerCase(), record])
+                    .map(record => [
+                        String(record.employeeId || record.empId || '').trim().toLowerCase(), // 👈 Check employeeId
+                        record
+                    ])
                     .filter(([employeeId]) => employeeId)
             );
 

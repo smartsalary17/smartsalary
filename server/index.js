@@ -27,6 +27,7 @@ const analyzerRouter = require('./routes/analyzer').route;
 const attendanceReportRouter = require('./routes/attendanceReport').route;
 const penaltyReportRouter = require('./routes/penaltyReport').route;
 const nameMappingsRouter = require('./routes/nameMappings').route;
+const cocoAttendanceRouter = require('./routes/cocoAttendance').route;
 
 const app = express();
 const server = http.createServer(app);
@@ -49,6 +50,7 @@ app.use('/api/auth', authRouter);
 app.use('/api', verifyToken);
 
 // App routes
+app.use('/api/coco-attendance', cocoAttendanceRouter);
 app.use('/api/analyzer', analyzerRouter);
 app.use('/api/attendance-report', attendanceReportRouter);
 app.use('/api/penalty-report', penaltyReportRouter);
