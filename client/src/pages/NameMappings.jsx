@@ -100,6 +100,26 @@ const NameMappings = () => {
             await fetchData();
         } catch (err) { setError(err.message); }
     };
+    // 1. Sort Employees by ID numerically
+    const sortedEmployees = React.useMemo(() => {
+        return [...employees].sort((a, b) => 
+            String(a.id).localeCompare(String(b.id), undefined, { numeric: true })
+        );
+    }, [employees]);
+
+    // 2. Sort Mappings by Emp ID numerically
+    const sortedMappings = React.useMemo(() => {
+        return [...mappings].sort((a, b) => 
+            String(a.empId).localeCompare(String(b.empId), undefined, { numeric: true })
+        );
+    }, [mappings]);
+
+    // 3. Filter Dropdown: Hide names that exactly match an employee's name
+    const filteredUnmappedNames = React.useMemo(() => {
+        return unmappedNames
+            .filter(name => !employees.some(e => e.name.toLowerCase() === name.toLowerCase()))
+            .sort();
+    }, [unmappedNames, employees]);
 
     return (
         <div className="pg active">
@@ -117,20 +137,19 @@ const NameMappings = () => {
                         <label>Employee (ID - Name)</label>
                         <select value={newEmpId} onChange={(e) => setNewEmpId(e.target.value)}>
                             <option value="">Select employee...</option>
-                            {employees.map(e => <option key={e.id} value={e.id}>{e.id} — {e.name}</option>)}
+                            {sortedEmployees.map(e => <option key={e.id} value={e.id}>{e.id} — {e.name}</option>)}
                         </select>
                     </div>
                     <div className="input-group">
                         <label>WhatsApp Saved Name</label>
-                        {/* 👇 Dropdown + Input combination */}
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                             <select 
                                 onChange={(e) => setNewAlias(e.target.value)} 
-                                value={unmappedNames.includes(newAlias) ? newAlias : ''}
+                                value={filteredUnmappedNames.includes(newAlias) ? newAlias : ''}
                                 style={{ flex: 1 }}
                             >
-                                <option value="">-- Select Analyzer Name --</option>
-                                {unmappedNames.map(name => (
+                                <option value="">-- Select Unmapped Name --</option>
+                                {filteredUnmappedNames.map(name => (
                                     <option key={name} value={name}>{name}</option>
                                 ))}
                             </select>
@@ -159,7 +178,7 @@ const NameMappings = () => {
                     <table>
                         <thead><tr><th>Employee</th><th>Aliases</th></tr></thead>
                         <tbody>
-                            {mappings.map(m => {
+                            {sortedMappings.map(m => {
                                 const emp = employees.find(e => String(e.id) === String(m.empId));
                                 const displayName = m.employeeName || emp?.name || 'Unknown';
                                 

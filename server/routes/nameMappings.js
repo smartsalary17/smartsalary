@@ -16,7 +16,7 @@ router.get('/', async (req, res, next) => {
         if (!shouldUseMockStore() && !(await ensurePersistentStore())) {
             return await respondStorageUnavailable(res);
         }
-        const mappings = await NameMapping.find().sort({ employeeName: 1 }).lean();
+        const mappings = await NameMapping.find().sort({ empId: 1 }).lean();
         const employees = await Employee.find().select('id name').lean();
         res.json({ success: true, mappings, employees });
     } catch (e) { next(e); }
