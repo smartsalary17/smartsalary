@@ -2,6 +2,7 @@
 import { Upload, Loader2, Send, CheckCircle2, AlertTriangle, X, Trash2, FileText, Info } from 'lucide-react';
 import { API_BASE } from '../context/workforceShared';
 import ConfirmModal from '../components/ConfirmModal';
+import { useToast } from '../context/ToastContext'; 
 
 const Analyzer = ({ setPage }) => {
     const [text, setText] = useState(() => localStorage.getItem('analyzer_text') || '');
@@ -19,8 +20,8 @@ const Analyzer = ({ setPage }) => {
         return saved ? JSON.parse(saved) : null;
     });
     const [error, setError] = useState('');
+    const { showToast } = useToast();
     
-    const [toast, setToast] = useState(null);
     const fileInputRef = useRef(null);
 
     useEffect(() => {
@@ -40,10 +41,7 @@ const Analyzer = ({ setPage }) => {
         checkDb();
     }, []);
 
-    const showToast = (message, type = 'info') => {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 4000);
-    };
+ 
 
     useEffect(() => {
         localStorage.setItem('analyzer_text', text);
@@ -161,13 +159,7 @@ const Analyzer = ({ setPage }) => {
 
     return (
         <div className="pg active">
-            {/* Custom Toast Notification */}
-            {toast && (
-                <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 10000, display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 20px', borderRadius: '8px', background: toast.type === 'error' ? 'rgba(239,68,68,0.95)' : (toast.type === 'success' ? 'rgba(34,197,94,0.95)' : 'rgba(59,130,246,0.95)'), color: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.2)' }}>
-                    {toast.type === 'error' ? <AlertTriangle size={18} /> : (toast.type === 'success' ? <CheckCircle2 size={18} /> : <Info size={18} />)}
-                    <span style={{ fontSize: '0.9rem', fontWeight: '500' }}>{toast.message}</span>
-                </div>
-            )}
+ 
 
             <div className="card">
                 <div className="ch" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

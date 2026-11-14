@@ -15,6 +15,7 @@ import PenaltyReport from './pages/PenaltyReport';
 import NameMappings from './pages/NameMappings';
 import Reports from './pages/Reports';
 import AttendancePDFExport from './pages/AttendancePDFExport';
+import { ToastProvider } from './context/ToastContext';
 
 const App = () => {
     const { loading, token, logout } = useWorkforce();
@@ -45,12 +46,13 @@ const App = () => {
 
     if (!token) {
         return (
-            <div style={{ position: 'relative', minHeight: '100vh', overflowX: 'hidden' }}>
-                <div className="circle circle-1"></div>
-                <div className="circle circle-2"></div>
-                <Login />
-                <div className="toast" id="toast"></div>
-            </div>
+            <ToastProvider> {/* Wrap with ToastProvider */}
+                <div style={{ position: 'relative', minHeight: '100vh', overflowX: 'hidden' }}>
+                    <div className="circle circle-1"></div>
+                    <div className="circle circle-2"></div>
+                    <Login />
+                </div>
+            </ToastProvider>
         );
     }
 
@@ -70,6 +72,7 @@ const renderPage = () => {
 };
 
     return (
+        <ToastProvider>
         <div style={{ position: 'relative', minHeight: '100vh', overflowX: 'hidden' }}>
             {/* Background Decorations */}
             <div className="circle circle-1"></div>
@@ -164,10 +167,11 @@ const renderPage = () => {
     </div>
 )}
 
-            <div className="toast" id="toast"></div>
         </div>
+        </ToastProvider>
     );
 };
+
 
 export default App;
 
