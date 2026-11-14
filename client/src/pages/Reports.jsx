@@ -438,7 +438,12 @@ const Reports = () => {
                                             
                                             // Sort by Name for better readability
                                             return Array.from(map.values())
-                                                .sort((a, b) => a.name.localeCompare(b.name))
+                                                .sort((a, b) => {
+                                                    // Keep unmapped ('-') at the bottom
+                                                    if (a.empId === '-' && b.empId !== '-') return 1;
+                                                    if (b.empId === '-' && a.empId !== '-') return -1;
+                                                    return String(a.empId).localeCompare(String(b.empId), undefined, { numeric: true });
+                                                })
                                                 .map(row => (
                                                 <tr key={row.empId + row.name}>
                                                     <td style={{ padding: '0.5rem', border: '1px solid var(--border-color)' }}>{row.empId}</td>

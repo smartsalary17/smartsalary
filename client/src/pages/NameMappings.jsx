@@ -268,18 +268,20 @@ const NameMappings = () => {
                         <table style={{ margin: 0 }}>
                             <thead style={{ position: 'sticky', top: 0, background: 'var(--sidebar-bg)', zIndex: 1 }}>
                                 <tr>
+                                    <th style={{ width: '50px', textAlign: 'center' }}>S.No</th>
                                     <th style={{ width: '35%' }}>Employee</th>
                                     <th>Aliases</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredEmployees.map(emp => {
+                                {filteredEmployees.map((emp, index) => { // 👈 Add index here
                                     const mapping = mappings.find(m => String(m.empId) === String(emp.id));
                                     const aliases = mapping ? mapping.aliases : [];
                                     const isAdding = activeInlineEmpId === emp.id;
 
                                     return (
                                         <tr key={emp.id}>
+                                            <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>{index + 1}</td> {/* 👈 Add this */}
                                             <td>
                                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                     <strong style={{ color: 'var(--primary)', fontSize: '0.95rem' }}>{emp.id} - {emp.name}</strong>
@@ -343,7 +345,7 @@ const NameMappings = () => {
                                     );
                                 })}
                                 {filteredEmployees.length === 0 && (
-                                    <tr><td colSpan={2} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>No employees found matching your search.</td></tr>
+                                    <tr><td colSpan={3} style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>No employees found matching your search.</td></tr>
                                 )}
                             </tbody>
                         </table>
