@@ -103,7 +103,8 @@ const AttendancePDFExport = () => {
 
         return selectedEmpIds.map(empId => {
             const emp = employees.find(e => String(e.id) === String(empId));
-            const stats = { P: 0, A: 0, WO: 0, HL: 0, LV: 0, workMins: 0, otMins: 0 };
+            // OT (otMins) நீக்கப்பட்டது
+            const stats = { P: 0, A: 0, WO: 0, HL: 0, LV: 0, workMins: 0 };
 
             const empRecords = attRecords.filter(r => 
                 String(r.employeeId) === String(empId) || String(r.name).toLowerCase() === String(emp?.name).toLowerCase()
@@ -124,8 +125,7 @@ const AttendancePDFExport = () => {
                 const workTime = record?.workTime || '00:00';
                 if (workTime !== '00:00' && workTime !== '--:--') stats.workMins += parseTime(workTime);
 
-                const otTime = record?.otTime || '00:00';
-                if (otTime !== '00:00' && otTime !== '--:--') stats.otMins += parseTime(otTime);
+                // OT கணக்கீடு நீக்கப்பட்டது
                 const breakTime = record?.breakTime || '00:00';
 
                 const isEmpty = !record;
@@ -137,7 +137,6 @@ const AttendancePDFExport = () => {
                     out: isNoWork ? '---' : (record?.checkOut || '---'),
                     work: isNoWork ? '---' : workTime,
                     break: isNoWork ? '---' : breakTime,
-                    ot: isNoWork ? '---' : otTime,
                     st: st === '--' ? 'A' : st,
                     dayName
                 };
@@ -184,13 +183,12 @@ const AttendancePDFExport = () => {
             currentY = 33;
 
             previewData.forEach(({ emp, records, stats, dates }) => {
-                // Dynamic Page Break Check: If there is no space left (approx 65mm needed for one record), add new page
                 if (currentY > pageHeight - 65) {
                     doc.addPage();
                     currentY = 15;
                 }
 
-                // Top Header Block (Reverted to Original Size)
+                // Top Header Block (OT நீக்கப்பட்டது)
                 autoTable(doc, {
                     startY: currentY,
                     body: [
@@ -199,8 +197,7 @@ const AttendancePDFExport = () => {
                             `Present`, String(stats.P), `WO`, String(stats.WO), 
                             `HL`, String(stats.HL), `LV`, String(stats.LV), 
                             `Absent`, String(stats.A), 
-                            `Tot. Work+OT`, formatTime(stats.workMins + stats.otMins), 
-                            `Total OT`, formatTime(stats.otMins)
+                            `Tot. Work`, formatTime(stats.workMins) // OT நீக்கப்பட்டது
                         ]
                     ],
                     theme: 'grid',
@@ -208,7 +205,7 @@ const AttendancePDFExport = () => {
                     columnStyles: {
                         0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' }, 4: { fontStyle: 'bold', textColor: [22, 163, 74] },
                         6: { fontStyle: 'bold' }, 8: { fontStyle: 'bold' }, 10: { fontStyle: 'bold' },
-                        12: { fontStyle: 'bold', textColor: [220, 38, 38] }, 14: { fontStyle: 'bold' }, 16: { fontStyle: 'bold' }
+                        12: { fontStyle: 'bold', textColor: [220, 38, 38] }, 14: { fontStyle: 'bold' }
                     }
                 });
 
@@ -218,14 +215,13 @@ const AttendancePDFExport = () => {
                 const outRow = ['OUT', ...records.map(r => r.out)];
                 const workRow = ['WORK', ...records.map(r => r.work)];
                 const breakRow = ['Break', ...records.map(r => r.break)];
-                const otRow = ['OT', ...records.map(r => r.ot)];
                 const statusRow = ['Status', ...records.map(r => r.st)];
 
-                // Main Table (Reverted to Original Size)
+                // Main Table (OT Row நீக்கப்பட்டது)
                 autoTable(doc, {
                     startY: doc.lastAutoTable.finalY,
                     head: [dayRow, dayNameRow],
-                    body: [inRow, outRow, workRow, breakRow, otRow, statusRow],
+                    body: [inRow, outRow, workRow, breakRow, statusRow], // OT Row நீக்கப்பட்டது
                     theme: 'grid',
                     pageBreak: 'avoid',
                     styles: { fontSize: 7, cellPadding: 1.5, halign: 'center', textColor: [0, 0, 0], lineColor: [200, 200, 200], lineWidth: 0.1, overflow: 'linebreak' },
@@ -234,7 +230,8 @@ const AttendancePDFExport = () => {
                         0: { fontStyle: 'bold', halign: 'center', cellWidth: 15 } 
                     },
                     didParseCell: function (data) {
-                        if (data.row.index === 5 && data.section === 'body') { 
+                        // Status row is now index 4 (0:IN, 1:OUT, 2:WORK, 3:Break, 4:Status)
+                        if (data.row.index === 4 && data.section === 'body') { 
                             if (data.cell.text[0] === 'P') data.cell.styles.textColor = [22, 163, 74];
                             else if (data.cell.text[0] === 'A') data.cell.styles.textColor = [220, 38, 38];
                             else if (data.cell.text[0] === 'WO') data.cell.styles.textColor = [99, 102, 241];
@@ -243,7 +240,6 @@ const AttendancePDFExport = () => {
                     }
                 });
 
-                // Add space between employees
                 currentY = doc.lastAutoTable.finalY + 8; 
             });
             
@@ -307,7 +303,7 @@ const AttendancePDFExport = () => {
                             <div className="preview-scroll-wrapper custom-scroll">
                                 <div className="preview-inner">
                                     
-                                    {/* Top Summary Block */}
+                                    {/* Top Summary Block (OT நீக்கப்பட்டது) */}
                                     <table style={{ borderCollapse: 'collapse', fontSize: '11px', whiteSpace: 'nowrap', width: '100%', marginBottom: '10px' }}>
                                         <tbody>
                                             <tr>
@@ -325,15 +321,13 @@ const AttendancePDFExport = () => {
                                                 <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px' }}>{stats.LV}</td>
                                                 <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)', color: '#dc2626' }}>Absent</td>
                                                 <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', color: '#dc2626' }}>{stats.A}</td>
-                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)' }}>Tot. Work+OT</td>
-                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px' }}>{formatTime(stats.workMins + stats.otMins)}</td>
-                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)' }}>Total OT</td>
-                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px' }}>{formatTime(stats.otMins)}</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)' }}>Tot. Work</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px' }}>{formatTime(stats.workMins)}</td>
                                             </tr>
                                         </tbody>
                                     </table>
 
-                                    {/* Main Grid Table */}
+                                    {/* Main Grid Table (OT Row நீக்கப்பட்டது) */}
                                     <table className="preview-table">
                                         <tbody>
                                             <tr style={{ background: 'var(--input-bg)', fontWeight: 'bold' }}>
@@ -360,10 +354,7 @@ const AttendancePDFExport = () => {
                                                 <td style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>Break</td>
                                                 {records.map((r, i) => <td key={i}>{r.break}</td>)}
                                             </tr>
-                                            <tr>
-                                                <td style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>OT</td>
-                                                {records.map((r, i) => <td key={i}>{r.ot}</td>)}
-                                            </tr>
+                                            {/* OT Row நீக்கப்பட்டது */}
                                             <tr>
                                                 <td style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>Status</td>
                                                 {records.map((r, i) => (
@@ -390,7 +381,6 @@ const AttendancePDFExport = () => {
                 <div style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', backgroundColor: 'var(--input-bg)', borderRadius: '10px', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
                     <button className={'small-btn ' + (dataSource === 'system' ? 'primary-btn' : 'secondary-btn')} onClick={() => setDataSource('system')} style={{ padding: '0.4rem 0.8rem', width: '100%', flex: 1 }}>System</button>
                     <button className={'small-btn ' + (dataSource === 'whatsapp' ? 'primary-btn' : 'secondary-btn')} onClick={() => setDataSource('whatsapp')} style={{ padding: '0.4rem 0.8rem', width: '100%', flex: 1 }}>WhatsApp</button>
-                    <button className={'small-btn ' + (dataSource === 'both' ? 'primary-btn' : 'secondary-btn')} onClick={() => setDataSource('both')} style={{ padding: '0.4rem 0.8rem', width: '100%', flex: 1 }}>Both</button>
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem' }}>
