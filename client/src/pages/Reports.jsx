@@ -158,9 +158,11 @@ const Reports = () => {
     const dropdownEmployees = useMemo(() => {
         // System tab- id wise
         if (source === 'biometric') {
-            return [...employees].sort((a, b) => 
-                String(a.id).localeCompare(String(b.id), undefined, { numeric: true })
-            );
+            return [...employees]
+                .map(emp => ({ ...emp, isMapped: true })) // 👈 Add isMapped: true
+                .sort((a, b) => 
+                    String(a.id).localeCompare(String(b.id), undefined, { numeric: true })
+                );
         }
         
        //show only whatsapp parsed name only
