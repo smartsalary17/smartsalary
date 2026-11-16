@@ -105,6 +105,7 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
     const activeDate = selectedDate || dates[0] || '';
 
     const todayStr = new Date().toISOString().split('T')[0];
+    const maxDate = source === 'whatsapp' && dates.length > 0 ? dates[0] : todayStr;
     const nextDateStr = shiftDate(activeDate, 1);
     const isFutureDate = nextDateStr > todayStr;
 
@@ -219,7 +220,7 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                                 <ChevronLeft size={16} />
                             </button>
                             
-                            <input type="date" value={activeDate} onChange={(e) => handleDateChange(e.target.value)} max={todayStr} style={{ padding: '0.5rem', width: 'auto' }} />
+                            <input type="date" value={activeDate} onChange={(e) => handleDateChange(e.target.value)} max={maxDate} style={{ padding: '0.5rem', width: 'auto' }} />
                             
                             {/* 👇 Next Button Fixed */}
                             <button className="small-btn secondary-btn" onClick={() => handleDateChange(nextDateStr)} disabled={isFutureDate} style={{ width: 'auto', opacity: isFutureDate ? 0.5 : 1, cursor: isFutureDate ? 'not-allowed' : 'pointer' }}>

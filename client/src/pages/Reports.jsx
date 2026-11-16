@@ -127,6 +127,11 @@ const Reports = () => {
     }, [month, year, source, employees.length]);
 
     const allDates = useMemo(() => Array.from(new Set(attRecords.map(r => r.date))).sort().reverse(), [attRecords]);
+    // 👇 2. Calculate Max Date based on source
+    const today = new Date().toISOString().split('T')[0];
+    // WhatsApp tab: Latest available date in records | System tab: Today's date
+    const maxSelectableDate = source === 'whatsapp' && allDates.length > 0 ? allDates[0] : today;
+
     const allMonthDates = useMemo(() => {
         const daysInMonth = new Date(year, month, 0).getDate();
         const dates = [];
@@ -137,12 +142,28 @@ const Reports = () => {
     }, [month, year]);
     useEffect(() => { if (allDates.length && !allDates.includes(selectedDate)) setSelectedDate(allDates[0]); }, [allDates, selectedDate]);
 
-    // 👇 1. Dropdown Logic (WhatsApp: Only WA names | System: All employees)
+    // 👇 ADD THIS function inside the Reports component
+    const handleDateWiseChange = (newDateStr) => {
+        setSelectedDate(newDateStr);
+        if (newDateStr) {
+            const [y, m] = newDateStr.split('-');
+            if (parseInt(y) !== year || parseInt(m) !== month) {
+                setMonth(parseInt(m));
+                setYear(parseInt(y));
+            }
+        }
+    };
+
+    // 👇 1. Dropdown Logic (WhatsApp: ONLY WA names | System: All employees)
     const dropdownEmployees = useMemo(() => {
-        // System tab-show all employees from db
-        if (source === 'biometric') return employees;
+        // System tab- id wise
+        if (source === 'biometric') {
+            return [...employees].sort((a, b) => 
+                String(a.id).localeCompare(String(b.id), undefined, { numeric: true })
+            );
+        }
         
-        // WhatsApp tab-only show parsed name
+       //show only whatsapp parsed name only
         const map = new Map();
         attRecords.forEach(r => {
             const isUnmapped = !r.employeeId || String(r.employeeId).startsWith('unmapped_');
@@ -158,8 +179,19 @@ const Reports = () => {
             }
         });
         
-        // Sort by Name
-        return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+        // 👇 Custom Sort: Mapped by ID, Unmapped by Name/Number
+        return Array.from(map.values()).sort((a, b) => {
+
+            if (a.isMapped && b.isMapped) {
+                return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+            }
+
+            if (!a.isMapped && !b.isUnmapped) {
+                return String(a.name).localeCompare(String(b.name), undefined, { numeric: true });
+            }
+  
+            return a.isMapped ? -1 : 1;
+        });
     }, [employees, attRecords, source]);
 
     // 👇 2. Get selected employee object
@@ -182,7 +214,16 @@ const Reports = () => {
             const emp = employees.find(e => String(e.id) === String(selectedEmployee));
             list.unshift({ id: selectedEmployee, name: emp ? emp.name : selectedEmployee, isMapped: !!emp });
         }
-        return list;
+        // Sort again to ensure the unshifted item is also in the correct position
+        return list.sort((a, b) => {
+            if (a.isMapped && b.isMapped) {
+                return String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
+            }
+            if (!a.isMapped && !b.isMapped) {
+                return String(a.name).localeCompare(String(b.name), undefined, { numeric: true });
+            }
+            return a.isMapped ? -1 : 1;
+        });
     }, [dropdownEmployees, selectedEmployee, employees]);
 
     // 👇 4. Name Wise Data Filter
@@ -357,8 +398,8 @@ const Reports = () => {
                             <input 
                                 type="date" 
                                 value={selectedDate} 
-                                onChange={(e) => setSelectedDate(e.target.value)} 
-                                max={new Date().toISOString().split('T')[0]} 
+                                onChange={(e) => handleDateWiseChange(e.target.value)} 
+                                max={maxSelectableDate}
                                 style={{ maxWidth: '200px' }} 
                             />
                             <div style={{ position: 'relative', flex: 1, minWidth: '200px', maxWidth: '400px' }}>
