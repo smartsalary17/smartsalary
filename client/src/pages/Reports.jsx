@@ -487,23 +487,58 @@ const Reports = () => {
                                     <tbody>
                                         {(() => {
                                             const map = new Map();
-                                            
-                                            // Prepopulate with all names
+
+                                            // 1. Prepopulate with all names
                                             if (source === 'biometric') {
                                                 for (const emp of employees) {
                                                     map.set(String(emp.id), { name: emp.name, empId: emp.id, c1: 0, c2: 0, c3: 0, perm: 0, hd: 0, wo: 0 });
                                                 }
                                             } else {
-                                                // For WhatsApp, use dropdownEmployees (includes unmapped names)
                                                 for (const emp of dropdownEmployees) {
                                                     map.set(String(emp.id), { name: emp.name, empId: emp.isMapped ? emp.id : '-', c1: 0, c2: 0, c3: 0, perm: 0, hd: 0, wo: 0 });
                                                 }
                                             }
-                                            
-                                            // Sort by Name for better readability
+
+                                            // 👇 2. ADD THIS: Calculate the counts from records
+                                            for (const r of deduplicatedAttRecords) {
+                                                // Check if the record's date is selected
+                                                if (!selectedSummaryDates.includes(r.date)) continue;
+
+                                                const isUnmapped = !r.employeeId || String(r.employeeId).startsWith('unmapped_');
+                                                const key = isUnmapped ? r.name : String(r.employeeId);
+
+                                                // Get existing data or create new
+                                                let s = map.get(key);
+                                                if (!s) {
+                                                    s = { name: r.name, empId: isUnmapped ? '-' : r.employeeId, c1: 0, c2: 0, c3: 0, perm: 0, hd: 0, wo: 0 };
+                                                }
+
+                                                // Check Time Zones
+                                                if (r.checkIn) {
+                                                    const toMins = (t) => { 
+                                                        if (!t) return -1;
+                                                        const parts = t.split(':');
+                                                        if (parts.length < 2) return -1;
+                                                        return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10); 
+                                                    };
+                                                    const tm = toMins(r.checkIn);
+                                                    
+                                                    if (tm >= toMins(timeZones[0].start) && tm <= toMins(timeZones[0].end)) s.c1++;
+                                                    if (tm >= toMins(timeZones[1].start) && tm <= toMins(timeZones[1].end)) s.c2++;
+                                                    if (tm >= toMins(timeZones[2].start) && tm <= toMins(timeZones[2].end)) s.c3++;
+                                                }
+
+                                                // Check Permissions, Half Days, Week Offs
+                                                if (r.permission && r.permission !== '-') s.perm++;
+                                                if (r.halfDay === 'Yes') s.hd++;
+                                                if (r.weekOff === 'Yes') s.wo++;
+
+                                                map.set(key, s);
+                                            }
+
+                                            // 3. Sort and Render
                                             return Array.from(map.values())
                                                 .sort((a, b) => {
-                                                    // Keep unmapped ('-') at the bottom
                                                     if (a.empId === '-' && b.empId !== '-') return 1;
                                                     if (b.empId === '-' && a.empId !== '-') return -1;
                                                     return String(a.empId).localeCompare(String(b.empId), undefined, { numeric: true });
