@@ -462,9 +462,9 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                     <button className="secondary-btn small-btn" onClick={handleBiometricSync} disabled={isSyncing || isCocoSyncing} style={{ borderColor: '#3b82f6', color: '#3b82f6', padding: '0.25rem 0.75rem' }}>
                         {isSyncing ? 'Syncing...' : 'Sync Biometric'}
                     </button>
-                    <button className="secondary-btn small-btn" onClick={handleCocoSync} disabled={isSyncing || isCocoSyncing} style={{ borderColor: '#8b5cf6', color: '#8b5cf6', padding: '0.25rem 0.75rem' }}>
-                        {isCocoSyncing ? 'Syncing COCO...' : 'Sync COCO'}
-                    </button>
+                    {/* <button className="secondary-btn small-btn" onClick={handleCocoSync} disabled={isSyncing || isCocoSyncing} style={{ borderColor: '#8b5cf6', color: '#8b5cf6', padding: '0.25rem 0.75rem' }}>
+                        {isCocoSyncing ? 'Syncing Whatsapp...' : 'Sync Whatsapp'}
+                    </button> */}
                     <button className="secondary-btn small-btn" onClick={onOpenReport} style={{ borderColor: 'var(--primary)', color: 'var(--primary)', padding: '0.25rem 0.75rem' }}>
                         <FileText size={16} /> Monthly Report
                     </button>
