@@ -27,14 +27,13 @@ const AttendancePDFExport = () => {
     const [selectedEmpIds, setSelectedEmpIds] = useState([]);
     const [month, setMonth] = useState(now.getMonth() + 1);
     const [year, setYear] = useState(now.getFullYear());
-    const [dataSource, setDataSource] = useState('system'); // 'system' | 'whatsapp' | 'both'
+    const [dataSource, setDataSource] = useState('system');
     const [attRecords, setAttRecords] = useState([]);
     const [loading, setLoading] = useState(false);
     const [generating, setGenerating] = useState(false);
 
-    // Helpers for Time Office Logic
     const parseTime = (t) => {
-        if (!t || t === '--:--') return 0;
+        if (!t || t === '--:--' || t === '---') return 0;
         const [h, m] = t.split(':').map(Number);
         return (h * 60) + m;
     };
@@ -68,7 +67,6 @@ const AttendancePDFExport = () => {
                 const [empRes, whatsappRes, biometricRes] = await Promise.all([
                     fetch(`${API_BASE}/api/employees`, { headers }).then(r => r.json()),
                     fetch(`${API_BASE}/api/attendance-report?month=${month}&year=${year}`, { headers }).then(r => r.json()),
-                    // Add month and year to the biometric API call here
                     fetch(`${API_BASE}/api/attendance?month=${month}&year=${year}`, { headers }).then(r => r.json())
                 ]);
 
@@ -99,14 +97,13 @@ const AttendancePDFExport = () => {
         else setSelectedEmpIds(employees.map(e => String(e.id)));
     };
 
-    // Prepare Preview Data (Time Office Format exactly like the image)
     const previewData = useMemo(() => {
         const daysInMonth = new Date(year, month, 0).getDate();
         const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
         return selectedEmpIds.map(empId => {
             const emp = employees.find(e => String(e.id) === String(empId));
-            const stats = { P: 0, A: 0, WO: 0, HL: 0, LV: 0, workMins: 0 };
+            const stats = { P: 0, A: 0, WO: 0, HL: 0, LV: 0, workMins: 0, otMins: 0 };
 
             const empRecords = attRecords.filter(r => 
                 String(r.employeeId) === String(empId) || String(r.name).toLowerCase() === String(emp?.name).toLowerCase()
@@ -116,6 +113,7 @@ const AttendancePDFExport = () => {
                 const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                 const record = empRecords.find(r => r.date === dateStr);
                 const st = mapStatus(record?.status);
+                const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(year, month - 1, d).getDay()];
                 
                 if (st === 'P' || st === 'HD') stats.P++;
                 else if (st === 'A') stats.A++;
@@ -126,7 +124,10 @@ const AttendancePDFExport = () => {
                 const workTime = record?.workTime || '00:00';
                 if (workTime !== '00:00' && workTime !== '--:--') stats.workMins += parseTime(workTime);
 
-                // Check if the day is empty OR if it's an off-status
+                const otTime = record?.otTime || '00:00';
+                if (otTime !== '00:00' && otTime !== '--:--') stats.otMins += parseTime(otTime);
+                const breakTime = record?.breakTime || '00:00';
+
                 const isEmpty = !record;
                 const isOff = ['WO', 'A', 'HL', 'LV'].includes(st);
                 const isNoWork = isEmpty || isOff;
@@ -135,7 +136,10 @@ const AttendancePDFExport = () => {
                     in: isNoWork ? '---' : (record?.checkIn || '---'),
                     out: isNoWork ? '---' : (record?.checkOut || '---'),
                     work: isNoWork ? '---' : workTime,
-                    st
+                    break: isNoWork ? '---' : breakTime,
+                    ot: isNoWork ? '---' : otTime,
+                    st: st === '--' ? 'A' : st,
+                    dayName
                 };
             });
 
@@ -152,9 +156,7 @@ const AttendancePDFExport = () => {
             const pageHeight = doc.internal.pageSize.getHeight();
             
             let currentY = 15; 
-            let recordsOnPage = 0; // Track how many employee records are on the current page
 
-            // 🌟 MAIN HEADER
             doc.setFontSize(18);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(30, 41, 59);
@@ -182,53 +184,67 @@ const AttendancePDFExport = () => {
             currentY = 33;
 
             previewData.forEach(({ emp, records, stats, dates }) => {
-                // CHECK: 3 records per page or near bottom of page
-                if (recordsOnPage >= 3 || currentY > pageHeight - 40) {
+                // Dynamic Page Break Check: If there is no space left (approx 65mm needed for one record), add new page
+                if (currentY > pageHeight - 65) {
                     doc.addPage();
                     currentY = 15;
-                    recordsOnPage = 0;
                 }
 
-                // 🌟 EMPLOYEE HEADER
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'bold');
-                doc.setTextColor(30, 41, 59);
-                doc.text(`${emp.id} - ${emp.name} (${dataSource === 'system' ? 'Biometric' : dataSource === 'whatsapp' ? 'WhatsApp' : 'Both'})`, 14, currentY);
+                // Top Header Block (Reverted to Original Size)
+                autoTable(doc, {
+                    startY: currentY,
+                    body: [
+                        [
+                            `Empcode`, String(emp.id), `Name`, emp.name, 
+                            `Present`, String(stats.P), `WO`, String(stats.WO), 
+                            `HL`, String(stats.HL), `LV`, String(stats.LV), 
+                            `Absent`, String(stats.A), 
+                            `Tot. Work+OT`, formatTime(stats.workMins + stats.otMins), 
+                            `Total OT`, formatTime(stats.otMins)
+                        ]
+                    ],
+                    theme: 'grid',
+                    styles: { fontSize: 7, cellPadding: 1.5, halign: 'left', textColor: [0, 0, 0], lineColor: [200, 200, 200], lineWidth: 0.1 },
+                    columnStyles: {
+                        0: { fontStyle: 'bold' }, 2: { fontStyle: 'bold' }, 4: { fontStyle: 'bold', textColor: [22, 163, 74] },
+                        6: { fontStyle: 'bold' }, 8: { fontStyle: 'bold' }, 10: { fontStyle: 'bold' },
+                        12: { fontStyle: 'bold', textColor: [220, 38, 38] }, 14: { fontStyle: 'bold' }, 16: { fontStyle: 'bold' }
+                    }
+                });
 
-                doc.setTextColor(99, 102, 241);
-                doc.text(`P:${stats.P} | A:${stats.A} | WO:${stats.WO} | LV:${stats.LV} | Work: ${formatTime(stats.workMins)}`, pageWidth - 14, currentY, { align: 'right' });
-
-                // 🌟 TABLE DATA
                 const dayRow = ['Day', ...dates.map(d => String(d))];
+                const dayNameRow = ['', ...records.map(r => r.dayName)];
                 const inRow = ['IN', ...records.map(r => r.in)];
                 const outRow = ['OUT', ...records.map(r => r.out)];
-                const workRow = ['Work', ...records.map(r => r.work)];
-                const statusRow = ['St.', ...records.map(r => r.st)];
+                const workRow = ['WORK', ...records.map(r => r.work)];
+                const breakRow = ['Break', ...records.map(r => r.break)];
+                const otRow = ['OT', ...records.map(r => r.ot)];
+                const statusRow = ['Status', ...records.map(r => r.st)];
 
+                // Main Table (Reverted to Original Size)
                 autoTable(doc, {
-                    startY: currentY + 3,
-                    head: [dayRow],
-                    body: [inRow, outRow, workRow, statusRow],
+                    startY: doc.lastAutoTable.finalY,
+                    head: [dayRow, dayNameRow],
+                    body: [inRow, outRow, workRow, breakRow, otRow, statusRow],
                     theme: 'grid',
-                    pageBreak: 'avoid', // 👈 IMPORTANT: Prevents table from splitting across pages
-                    styles: { fontSize: 7, cellPadding: 1.5, halign: 'center', textColor: [0, 0, 0] },
-                    headStyles: { fillColor: [44, 62, 80], textColor: 255, fontSize: 7, fontStyle: 'bold' },
+                    pageBreak: 'avoid',
+                    styles: { fontSize: 7, cellPadding: 1.5, halign: 'center', textColor: [0, 0, 0], lineColor: [200, 200, 200], lineWidth: 0.1, overflow: 'linebreak' },
+                    headStyles: { fillColor: [255, 255, 255], textColor: [0, 0, 0], fontStyle: 'normal', halign: 'center' },
                     columnStyles: { 
-                        0: { fontStyle: 'bold', halign: 'left', fillColor: [245, 245, 245], cellWidth: 15 } 
+                        0: { fontStyle: 'bold', halign: 'center', cellWidth: 15 } 
                     },
-                    margin: { left: 14, right: 14, bottom: 15 },
                     didParseCell: function (data) {
-                        if (data.row.index === 3) { 
-                            if (data.cell.text[0] === 'P') data.cell.styles.textColor = [22, 163, 74]; 
-                            else if (data.cell.text[0] === 'A') data.cell.styles.textColor = [220, 38, 38]; 
-                            else if (data.cell.text[0] === 'WO') data.cell.styles.textColor = [99, 102, 241]; 
+                        if (data.row.index === 5 && data.section === 'body') { 
+                            if (data.cell.text[0] === 'P') data.cell.styles.textColor = [22, 163, 74];
+                            else if (data.cell.text[0] === 'A') data.cell.styles.textColor = [220, 38, 38];
+                            else if (data.cell.text[0] === 'WO') data.cell.styles.textColor = [99, 102, 241];
                             data.cell.styles.fontStyle = 'bold';
                         }
                     }
                 });
 
-                currentY = doc.lastAutoTable.finalY + 10;
-                recordsOnPage++; // Increment record count
+                // Add space between employees
+                currentY = doc.lastAutoTable.finalY + 8; 
             });
             
             doc.save(`TimeOffice_Report_${MONTHS[month - 1]}_${year}.pdf`);
@@ -244,7 +260,7 @@ const AttendancePDFExport = () => {
                     scrollbar-width: thin;
                     scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
                 }
-                .custom-scroll::-webkit-scrollbar { width: 6px; }
+                .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
                 .custom-scroll::-webkit-scrollbar-track { background: transparent; }
                 .custom-scroll::-webkit-scrollbar-thumb { 
                     background: rgba(148, 163, 184, 0.6); 
@@ -253,69 +269,124 @@ const AttendancePDFExport = () => {
                 .custom-scroll::-webkit-scrollbar-thumb:hover { 
                     background: rgba(148, 163, 184, 0.9); 
                 }
+                .preview-scroll-wrapper {
+                    width: 100%;
+                    overflow-x: auto;
+                    -webkit-overflow-scrolling: touch;
+                }
+                .preview-inner {
+                    min-width: 1300px;
+                    width: 100%;
+                }
+                .preview-table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    font-size: 11px;
+                    white-space: nowrap;
+                }
+                .preview-table td {
+                    border: 1px solid var(--border-color);
+                    padding: 6px 4px;
+                    text-align: center;
+                    white-space: nowrap;
+                }
             `}</style>
 
-            {/* LEFT SIDE: PREVIEW (Time Office Style) */}
-            <div className="custom-scroll" style={{ flex: 1, background: '#e2e8f0', padding: '20px', borderRadius: '12px', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* LEFT SIDE: PREVIEW */}
+            <div className="custom-scroll" style={{ flex: 1, background: 'var(--input-bg)', padding: '20px', borderRadius: '12px', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {selectedEmpIds.length === 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-secondary)' }}>
                         <FileText size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
                         <h3>No Employee Selected</h3>
                         <p>Select employees from the right panel to preview and generate PDF.</p>
                     </div>
                 ) : (
                     previewData.map(({ emp, records, stats, dates }) => (
-                        <div key={emp.id} style={{ background: '#fff', padding: '20px', borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', color: '#000', width: '100%', boxSizing: 'border-box' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', borderBottom: '1px solid #eee', paddingBottom: '5px', fontSize: '12px', fontWeight: 'bold' }}>
-                                <span style={{ color: '#1e293b' }}>{emp.id} - {emp.name} ({dataSource === 'system' ? 'Biometric' : dataSource === 'whatsapp' ? 'WhatsApp' : 'Both'})</span>
-                                <span style={{ color: '#6366f1' }}>
-                                    P:{stats.P} | A:{stats.A} | WO:{stats.WO} | LV:{stats.LV} | Work: {formatTime(stats.workMins)}
-                                </span>
-                            </div>
+                        <div key={emp.id} style={{ background: 'var(--card-bg)', padding: '15px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)', color: 'var(--text-primary)', width: '100%', boxSizing: 'border-box', flexShrink: 0 }}>
                             
-                            {/* Wrapper added for horizontal scroll only on the table */}
-                            <div style={{ overflowX: 'auto', width: '100%' }}>
-                                <table style={{ width: '100%', minWidth: '900px', borderCollapse: 'collapse', fontSize: '10px' }}>
-                                    <tbody>
-                                        <tr>
-                                            <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '4px', fontWeight: 'bold', color: '#000', position: 'sticky', left: 0 }}>Day</td>
-                                            {dates.map(d => <td key={d} style={{ border: '1px solid #ddd', padding: '4px', color: '#000', textAlign: 'center' }}>{d}</td>)}
-                                        </tr>
-                                        <tr>
-                                            <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '4px', fontWeight: 'bold', color: '#000', position: 'sticky', left: 0 }}>IN</td>
-                                            {records.map((d, i) => <td key={i} style={{ border: '1px solid #ddd', padding: '4px', color: '#000', textAlign: 'center' }}>{d.in}</td>)}
-                                        </tr>
-                                        <tr>
-                                            <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '4px', fontWeight: 'bold', color: '#000', position: 'sticky', left: 0 }}>OUT</td>
-                                            {records.map((d, i) => <td key={i} style={{ border: '1px solid #ddd', padding: '4px', color: '#000', textAlign: 'center' }}>{d.out}</td>)}
-                                        </tr>
-                                        <tr>
-                                            <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '4px', fontWeight: 'bold', color: '#000', position: 'sticky', left: 0 }}>Work</td>
-                                            {records.map((d, i) => <td key={i} style={{ border: '1px solid #ddd', padding: '4px', color: '#000', textAlign: 'center' }}>{d.work}</td>)}
-                                        </tr>
-                                        <tr>
-                                            <td style={{ background: '#f5f5f5', border: '1px solid #ddd', padding: '4px', fontWeight: 'bold', color: '#000', position: 'sticky', left: 0 }}>St.</td>
-                                            {records.map((d, i) => (
-                                                <td key={i} style={{ border: '1px solid #ddd', padding: '4px', textAlign: 'center', color: d.st === 'P' ? '#16a34a' : d.st === 'A' ? '#dc2626' : d.st === 'WO' ? '#6366f1' : '#666', fontWeight: 'bold' }}>
-                                                    {d.st}
-                                                </td>
-                                            ))}
-                                        </tr>
-                                    </tbody>
-                                </table>
+                            <div className="preview-scroll-wrapper custom-scroll">
+                                <div className="preview-inner">
+                                    
+                                    {/* Top Summary Block */}
+                                    <table style={{ borderCollapse: 'collapse', fontSize: '11px', whiteSpace: 'nowrap', width: '100%', marginBottom: '10px' }}>
+                                        <tbody>
+                                            <tr>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)' }}>Empcode</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px' }}>{emp.id}</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)' }}>Name</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px' }}>{emp.name}</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)', color: '#16a34a' }}>Present</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', color: '#16a34a' }}>{stats.P}</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)' }}>WO</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px' }}>{stats.WO}</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)' }}>HL</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px' }}>{stats.HL}</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)' }}>LV</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px' }}>{stats.LV}</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)', color: '#dc2626' }}>Absent</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', color: '#dc2626' }}>{stats.A}</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)' }}>Tot. Work+OT</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px' }}>{formatTime(stats.workMins + stats.otMins)}</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px', fontWeight: 'bold', background: 'var(--input-bg)' }}>Total OT</td>
+                                                <td style={{ border: '1px solid var(--border-color)', padding: '4px 8px' }}>{formatTime(stats.otMins)}</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+
+                                    {/* Main Grid Table */}
+                                    <table className="preview-table">
+                                        <tbody>
+                                            <tr style={{ background: 'var(--input-bg)', fontWeight: 'bold' }}>
+                                                <td style={{ textAlign: 'left', paddingLeft: '8px' }}>Day</td>
+                                                {dates.map(d => <td key={d}>{d}</td>)}
+                                            </tr>
+                                            <tr>
+                                                <td></td>
+                                                {records.map((r, i) => <td key={i} style={{ color: 'var(--text-secondary)' }}>{r.dayName}</td>)}
+                                            </tr>
+                                            <tr>
+                                                <td style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>IN</td>
+                                                {records.map((r, i) => <td key={i}>{r.in}</td>)}
+                                            </tr>
+                                            <tr>
+                                                <td style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>OUT</td>
+                                                {records.map((r, i) => <td key={i}>{r.out}</td>)}
+                                            </tr>
+                                            <tr>
+                                                <td style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>WORK</td>
+                                                {records.map((r, i) => <td key={i}>{r.work}</td>)}
+                                            </tr>
+                                            <tr>
+                                                <td style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>Break</td>
+                                                {records.map((r, i) => <td key={i}>{r.break}</td>)}
+                                            </tr>
+                                            <tr>
+                                                <td style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>OT</td>
+                                                {records.map((r, i) => <td key={i}>{r.ot}</td>)}
+                                            </tr>
+                                            <tr>
+                                                <td style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>Status</td>
+                                                {records.map((r, i) => (
+                                                    <td key={i} style={{ color: r.st === 'P' ? '#16a34a' : r.st === 'A' ? '#dc2626' : r.st === 'WO' ? '#6366f1' : 'var(--text-secondary)', fontWeight: 'bold' }}>
+                                                        {r.st}
+                                                    </td>
+                                                ))}
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     ))
                 )}
             </div>
 
-            {/* RIGHT SIDE: EXPORT SETTINGS (Theme Adaptive) */}
+            {/* RIGHT SIDE: EXPORT SETTINGS */}
             <div style={{ width: '350px', flexShrink: 0, height: '100%', display: 'flex', flexDirection: 'column', margin: 0, backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '24px' }}>
                 <div style={{ marginBottom: '1rem', borderBottom: '1px dotted var(--border-color)', paddingBottom: '12px' }}>
                     <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Export Settings</h2>
                 </div>
                 
-                {/* Data Source Toggle */}
                 <div style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', backgroundColor: 'var(--input-bg)', borderRadius: '10px', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
                     <button className={'small-btn ' + (dataSource === 'system' ? 'primary-btn' : 'secondary-btn')} onClick={() => setDataSource('system')} style={{ padding: '0.4rem 0.8rem', width: '100%', flex: 1 }}>System</button>
                     <button className={'small-btn ' + (dataSource === 'whatsapp' ? 'primary-btn' : 'secondary-btn')} onClick={() => setDataSource('whatsapp')} style={{ padding: '0.4rem 0.8rem', width: '100%', flex: 1 }}>WhatsApp</button>
