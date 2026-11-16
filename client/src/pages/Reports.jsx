@@ -126,12 +126,6 @@ const Reports = () => {
         fetchData();
     }, [month, year, source, employees.length]);
 
-    useEffect(() => {
-        if (employees.length && !employees.some(e => String(e.id) === selectedEmployee)) {
-            setSelectedEmployee(String(employees[0].id));
-        }
-    }, [employees, selectedEmployee]);
-
     const allDates = useMemo(() => Array.from(new Set(attRecords.map(r => r.date))).sort().reverse(), [attRecords]);
     const allMonthDates = useMemo(() => {
         const daysInMonth = new Date(year, month, 0).getDate();
@@ -143,12 +137,13 @@ const Reports = () => {
     }, [month, year]);
     useEffect(() => { if (allDates.length && !allDates.includes(selectedDate)) setSelectedDate(allDates[0]); }, [allDates, selectedDate]);
 
-    // 👇 1. Simple Dropdown Logic (Only show names that have records)
+    // 👇 1. Dropdown Logic (WhatsApp: Only WA names | System: All employees)
     const dropdownEmployees = useMemo(() => {
+        // System tab-show all employees from db
         if (source === 'biometric') return employees;
         
+        // WhatsApp tab-only show parsed name
         const map = new Map();
-        
         attRecords.forEach(r => {
             const isUnmapped = !r.employeeId || String(r.employeeId).startsWith('unmapped_');
             const key = isUnmapped ? r.name : String(r.employeeId);
@@ -163,29 +158,34 @@ const Reports = () => {
             }
         });
         
+        // Sort by Name
         return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
     }, [employees, attRecords, source]);
 
-    // 👇 2. ADD THIS (selectedEmpObj definition)
+    // 👇 2. Get selected employee object
     const selectedEmpObj = useMemo(() => {
-        const list = source === 'biometric' ? employees : dropdownEmployees;
-        return list.find(e => String(e.id) === String(selectedEmployee));
-    }, [employees, dropdownEmployees, selectedEmployee, source]);
+        return dropdownEmployees.find(e => String(e.id) === String(selectedEmployee));
+    }, [dropdownEmployees, selectedEmployee]);
 
-    // 👇 Fix Selected Employee Sync (Auto-switch if data is missing for current selection)
+    // 👇 3. Sync Selected Employee (Only set if empty)
     useEffect(() => {
-        const list = source === 'biometric' ? employees : dropdownEmployees;
-        if (list.length > 0) {
-            const exists = list.some(e => String(e.id) === String(selectedEmployee));
-            if (!exists) {
-                setSelectedEmployee(String(list[0].id)); // 👈 Switch to the first available employee
-            }
-        } else if (selectedEmployee !== '') {
-            setSelectedEmployee('');
+        // Only set default if nothing is selected
+        if (!selectedEmployee && dropdownEmployees.length > 0) {
+            setSelectedEmployee(String(dropdownEmployees[0].id));
         }
-    }, [employees, dropdownEmployees, source]); // Do not include selectedEmployee here to avoid looping
+    }, [dropdownEmployees, selectedEmployee]); 
 
-    // 👇 3. Simple Name Wise Data Filter
+    // 👇 4. Show selected employee in dropdown even if not in list
+    const displayDropdownEmployees = useMemo(() => {
+        const list = [...dropdownEmployees];
+        if (selectedEmployee && !list.some(e => String(e.id) === String(selectedEmployee))) {
+            const emp = employees.find(e => String(e.id) === String(selectedEmployee));
+            list.unshift({ id: selectedEmployee, name: emp ? emp.name : selectedEmployee, isMapped: !!emp });
+        }
+        return list;
+    }, [dropdownEmployees, selectedEmployee, employees]);
+
+    // 👇 4. Name Wise Data Filter
     const nameWiseData = useMemo(() => {
         if (!selectedEmpObj) return [];
         
@@ -322,8 +322,8 @@ const Reports = () => {
                 ) : tab === 'name' ? (
                     <>
                         <select value={selectedEmployee} onChange={(e) => setSelectedEmployee(e.target.value)} style={{ marginBottom: '1rem', maxWidth: '300px' }}>
-                            {dropdownEmployees.length === 0 && <option value="">No records found for this month</option>}
-                            {dropdownEmployees.map(e => (
+                            {displayDropdownEmployees.length === 0 && <option value="">No records found for this month</option>}
+                            {displayDropdownEmployees.map(e => (
                                 <option key={e.id} value={String(e.id)}>
                                     {e.isMapped ? `${e.id} — ${e.name}` : e.name}
                                 </option>
@@ -340,7 +340,13 @@ const Reports = () => {
                                         <td>{renderStatusPills(r)}</td>
                                     </tr>
                                 ))}
-                                {nameWiseData.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No {source} records for this  <strong>{selectedEmpObj?.name || 'this employee'}</strong></td></tr>}
+                                {nameWiseData.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+                                            No {source} records for <strong>{selectedEmpObj?.name || employees.find(e => String(e.id) === String(selectedEmployee))?.name || selectedEmployee}</strong>
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </>
