@@ -106,9 +106,11 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
 
     const todayStr = new Date().toISOString().split('T')[0];
     const maxDate = source === 'whatsapp' && dates.length > 0 ? dates[0] : todayStr;
+    const minDate = source === 'whatsapp' && dates.length > 0 ? dates[dates.length - 1] : '';
     const nextDateStr = shiftDate(activeDate, 1);
-    const isFutureDate = nextDateStr > todayStr;
-
+    const prevDateStr = shiftDate(activeDate, -1);
+    const isPastDate = minDate && prevDateStr < minDate;
+    const isFutureDate = nextDateStr > maxDate;
     const dayRecords = useMemo(() => {
         if (!activeDate) return [];
         
@@ -216,14 +218,32 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                     <>
                         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
                             {/* 👇 Prev Button Fixed */}
-                            <button className="small-btn secondary-btn" onClick={() => handleDateChange(shiftDate(activeDate, -1))} style={{ width: 'auto' }}>
+                            <button 
+                                className="small-btn secondary-btn" 
+                                onClick={() => handleDateChange(prevDateStr)} 
+                                disabled={isPastDate} 
+                                style={{ width: 'auto', opacity: isPastDate ? 0.5 : 1, cursor: isPastDate ? 'not-allowed' : 'pointer' }}
+                            >
                                 <ChevronLeft size={16} />
                             </button>
                             
-                            <input type="date" value={activeDate} onChange={(e) => handleDateChange(e.target.value)} max={maxDate} style={{ padding: '0.5rem', width: 'auto' }} />
+                            {/* 👇 Date Input Fixed with min and max */}
+                            <input 
+                                type="date" 
+                                value={activeDate} 
+                                onChange={(e) => handleDateChange(e.target.value)} 
+                                min={minDate} 
+                                max={maxDate} 
+                                style={{ padding: '0.5rem', width: 'auto' }} 
+                            />
                             
-                            {/* 👇 Next Button Fixed */}
-                            <button className="small-btn secondary-btn" onClick={() => handleDateChange(nextDateStr)} disabled={isFutureDate} style={{ width: 'auto', opacity: isFutureDate ? 0.5 : 1, cursor: isFutureDate ? 'not-allowed' : 'pointer' }}>
+                            {/* 👇 Next Button Fixed (using updated isFutureDate) */}
+                            <button 
+                                className="small-btn secondary-btn" 
+                                onClick={() => handleDateChange(nextDateStr)} 
+                                disabled={isFutureDate} 
+                                style={{ width: 'auto', opacity: isFutureDate ? 0.5 : 1, cursor: isFutureDate ? 'not-allowed' : 'pointer' }}
+                            >
                                 <ChevronRight size={16} />
                             </button>
                             
