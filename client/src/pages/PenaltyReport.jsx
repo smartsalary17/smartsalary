@@ -86,10 +86,11 @@ const PenaltyReport = () => {
                             <div className="stat-value" style={{ color: 'var(--danger)' }}>₹{totalPenalty.toLocaleString('en-IN')}</div>
                         </div>
                         <table>
-                            <thead><tr><th>Employee</th><th style={{ textAlign: 'center' }}>Count</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
+                            <thead><tr><th>Emp ID</th><th>Employee</th><th style={{ textAlign: 'center' }}>Count</th><th style={{ textAlign: 'right' }}>Total</th></tr></thead>
                             <tbody>
                                 {visibleOverall.map((r, i) => (
                                     <tr key={i}>
+                                        <td>{r.employeeId && !String(r.employeeId).startsWith('unmapped_') ? r.employeeId : '—'}</td>
                                         <td><strong>{r.name}</strong></td>
                                         <td style={{ textAlign: 'center' }}>{r.count}</td>
                                         <td style={{ textAlign: 'right', color: 'var(--danger)', fontWeight: 700 }}>₹{r.total.toLocaleString('en-IN')}</td>
@@ -101,17 +102,18 @@ const PenaltyReport = () => {
                     </>
                 ) : (
                     <table>
-                        <thead><tr><th>Date</th><th>Employee</th><th>Reason</th><th style={{ textAlign: 'right' }}>Amount</th></tr></thead>
+                        <thead><tr><th>Date</th><th>Emp ID</th><th>Employee</th><th>Reason</th><th style={{ textAlign: 'right' }}>Amount</th></tr></thead>
                         <tbody>
                             {visibleExplicit.map((r, i) => (
                                 <tr key={i}>
                                     <td>{r.date}</td>
+                                    <td>{r.employeeId && !String(r.employeeId).startsWith('unmapped_') ? r.employeeId : '—'}</td>
                                     <td><strong>{r.name}</strong></td>
                                     <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{r.penaltyReason || '—'}</td>
                                     <td style={{ textAlign: 'right', color: 'var(--danger)', fontWeight: 700 }}>₹{Number(r.penalty).toLocaleString('en-IN')}</td>
                                 </tr>
                             ))}
-                            {visibleExplicit.length === 0 && <tr><td colSpan={4} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No penalties</td></tr>}
+                            {visibleExplicit.length === 0 && <tr><td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>No penalties</td></tr>}
                         </tbody>
                     </table>
                 )}
