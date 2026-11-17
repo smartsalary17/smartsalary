@@ -3249,15 +3249,39 @@ button:active {
     }
 }
 
+/* Employee page responsive fixes */
+@media (max-width: 1000px) {
+    .employee-details-page .ed-selector-controls {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
 
+    .employee-details-page .ed-result-count {
+        grid-column: 1 / -1;
+    }
+}
 
+@media (max-width: 700px) {
+    .employee-details-page .ed-selector-controls {
+        grid-template-columns: minmax(0, 1fr);
+    }
 
+    .employee-details-page .ed-result-count {
+        grid-column: auto;
+    }
 
+    .employee-details-page .ed-selector-heading {
+        gap: 14px;
+    }
 
+    .employee-details-page .ed-add-employee {
+        width: 100%;
+    }
 
+    .employee-details-page .ed-header-actions {
+        flex-wrap: wrap;
+    }
 
-
-
-
-
-
+    .employee-details-page .ed-header-actions > button {
+        min-width: 0;
+    }
+}
