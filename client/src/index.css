@@ -433,23 +433,141 @@ tr:hover td {
     .input-grid, .input-grid.form-grid { grid-template-columns: 1fr 1fr; }
 }
 
+
 @media (max-width: 768px) {
-    .input-grid, .input-grid.form-grid, .two-col { grid-template-columns: 1fr; }
-    .full-width { grid-column: span 1; }
-    
-    body { height: auto; min-height: 100vh; overflow-y: auto; display: block; }
-    .app { flex-direction: column; height: auto; min-height: 100vh; display: flex; }
-    .sidebar { width: 100%; height: auto; flex-shrink: 0; border-right: none; border-bottom: 1px solid var(--border-color); display: flex; flex-direction: column; }
-    .nav { display: flex; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; padding: 10px; flex: none; }
-    .ni { margin-bottom: 0; margin-right: 8px; white-space: nowrap; flex-shrink: 0; }
-    .logout-container { display: flex; /* keep it in document flow */ }
-    
-    .main { display: flex; flex-direction: column; height: auto; min-height: 100vh; overflow-y: visible; flex: 1; }
-    .content { padding: 15px; } /* reduce padding on mobile */
-    .content.content-dashboard { padding: 18px 16px; }
-    .topbar { padding: 15px; position: sticky; top: 0; }
+    .input-grid,
+    .input-grid.form-grid,
+    .two-col {
+        grid-template-columns: 1fr;
+    }
+
+    .full-width {
+        grid-column: span 1;
+    }
+
+    body {
+        min-height: 100vh;
+        overflow-x: hidden;
+    }
+
+    .app {
+        flex-direction: row;
+        width: 100%;
+        min-height: 100vh;
+    }
+
+    .main {
+        width: 100%;
+        min-width: 0;
+        min-height: 100vh;
+        overflow-x: hidden;
+    }
+
+    .content {
+        padding: 15px;
+    }
+
+    .content.content-dashboard {
+        padding: 18px 16px;
+    }
+
+    .topbar {
+        padding: 15px;
+        position: sticky;
+        top: 0;
+    }
+     .topbar .pt {
+    display: none;
+  }
+
+  .ss-toggle {
+  display: inline-flex;
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 40;
+  background: var(--sidebar-bg);
+  color: var(--text-primary);
 }
 
+.ss-close {
+  display: inline-flex;
+  align-self: flex-end;
+  margin-bottom: 12px;
+  background: var(--input-bg);
+  color: var(--text-primary);
+}
+.topbar {
+  padding: 12px 15px 12px 66px;
+  gap: 8px;
+}
+
+.topbar .pt {
+  display: block;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+.topbar-right {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px !important;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.theme-select-desktop {
+  display: none;
+}
+
+.theme-select-mobile {
+  display: block;
+  width: 42px;
+  min-width: 42px;
+  height: 36px;
+  padding: 4px;
+  text-align: center;
+}
+
+.topbar-date {
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 11px !important;
+}
+.theme-select-mobile {
+  display: block;
+  flex-shrink: 0;
+}
+}
+
+.theme-select-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .theme-select-desktop {
+    display: none;
+  }
+
+  .theme-select-mobile {
+    display: block;
+  }
+}
+
+.ss-toggle, .ss-close {
+  width: 42px;
+  min-width: 42px;
+  height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  cursor: pointer;
+}
 .input-group {
     display: flex;
     flex-direction: column;
@@ -3046,12 +3164,12 @@ button:active {
     }
 
     .dashboard-status-grid {
-        display: flex;
-        gap: 9px;
-        margin-right: -19px;
-        padding-right: 19px;
-        overflow-x: auto;
-        scrollbar-width: none;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin: 0;
+        padding: 0;
+        overflow: visible;
     }
 
     .dashboard-status-grid::-webkit-scrollbar {
@@ -3059,7 +3177,10 @@ button:active {
     }
 
     .dashboard-status-tile {
-        flex: 0 0 125px;
+        width: 100%;
+        min-width: 0;
+        min-height: 85px;
+        flex: none;
     }
 
     .dashboard-section-header {
@@ -3127,6 +3248,7 @@ button:active {
         padding: 0;
     }
 }
+
 
 
 

@@ -1,17 +1,18 @@
-﻿import React from 'react';
+﻿
+import React from 'react';
 import { MONTHS } from '../context/workforceShared';
 
 const Topbar = ({ activePage }) => {
   const titleMap = {
-    'dashboard': 'Dashboard',
-    'employees': 'Employees',
-    'attendance': 'Attendance',
-    'calculator': 'Salary Calculator',
-    'analyzer': 'Whatsapp Analyzer',
+    dashboard: 'Dashboard',
+    employees: 'Employees',
+    attendance: 'Attendance',
+    calculator: 'Salary Calculator',
+    analyzer: 'Whatsapp Analyzer',
     'attendance-report': 'Attendance Report',
     'penalty-report': 'Penalty Report',
     'name-mappings': 'Name Mappings',
-    'reports': 'Reports',
+    reports: 'Reports',
     'export-pdf': 'Attendance PDF'
   };
 
@@ -20,25 +21,38 @@ const Topbar = ({ activePage }) => {
     localStorage.setItem('wf_theme', theme);
   };
 
+  const currentTheme = localStorage.getItem('wf_theme') || 'dark';
   const now = new Date();
   const dateDisplay = `${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
 
   return (
     <div className="topbar">
       <span className="pt">{titleMap[activePage] || 'Dashboard'}</span>
-      <div className="topbar-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <select 
-          className="theme-select" 
-          defaultValue={localStorage.getItem('wf_theme') || 'dark'}
+
+      <div className="topbar-right">
+        <select
+          className="theme-select theme-select-desktop"
+          defaultValue={currentTheme}
           onChange={(e) => changeTheme(e.target.value)}
+          aria-label="Select theme"
         >
           <option value="dark">🌙 Dark</option>
           <option value="light">☀️ Light</option>
           <option value="ocean">🌊 Ocean</option>
         </select>
-        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-          {dateDisplay}
-        </span>
+
+        <select
+          className="theme-select theme-select-mobile"
+          defaultValue={currentTheme}
+          onChange={(e) => changeTheme(e.target.value)}
+          aria-label="Select theme"
+        >
+          <option value="dark">🌙</option>
+          <option value="light">☀️</option>
+          <option value="ocean">🌊</option>
+        </select>
+
+        <span className="topbar-date">{dateDisplay}</span>
       </div>
     </div>
   );

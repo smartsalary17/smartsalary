@@ -119,7 +119,7 @@ const Sidebar = ({ activePage, setPage, onLogout }) => {
       <button ref={toggleRef} type="button" className="ss-toggle"
         aria-label="Open navigation" aria-expanded={isOpen} aria-controls={sidebarId}
         onClick={() => setIsOpen(true)}>
-        <Menu size={20} aria-hidden="true" /> Menu
+        <Menu size={20} aria-hidden="true" />
       </button>
       {isOpen && <div className="ss-backdrop" aria-hidden="true" onClick={closeDrawer} />}
       <aside ref={sidebarRef} id={sidebarId} className="ss-sidebar" data-open={isOpen}
