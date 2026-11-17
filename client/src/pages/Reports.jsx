@@ -140,7 +140,21 @@ const Reports = () => {
         }
         return dates.reverse();
     }, [month, year]);
-    useEffect(() => { if (allDates.length && !allDates.includes(selectedDate)) setSelectedDate(allDates[0]); }, [allDates, selectedDate]);
+        useEffect(() => { 
+        if (!allDates.length) return;
+        if (!selectedDate) {
+            setSelectedDate(allDates[0]);
+            return;
+        }
+        
+        const [sYear, sMonth] = selectedDate.split('-');
+        const isCurrentMonth = parseInt(sYear) === year && parseInt(sMonth) === month;
+        
+        // Only fallback if the date is completely outside the current month
+        if (!allDates.includes(selectedDate) && !isCurrentMonth) {
+            setSelectedDate(allDates[0]);
+        }
+    }, [allDates, selectedDate, month, year]);
 
     // 👇 ADD THIS function inside the Reports component
     const handleDateWiseChange = (newDateStr) => {
