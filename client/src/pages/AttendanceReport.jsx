@@ -38,6 +38,8 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
     const [month, setMonth] = useState(propMonth || now.getMonth() + 1);
     const [year, setYear] = useState(propYear || now.getFullYear());
     const [records, setRecords] = useState([]);
+    const [localEmployees, setLocalEmployees] = useState([]);
+    const [localWhatsappNames, setLocalWhatsappNames] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [search, setSearch] = useState('');
@@ -81,20 +83,20 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'HTTP ' + res.status);
 
-                // Auto-switch code removed. Just set records.
                 setRecords(data.records || []);
+                setLocalWhatsappNames(data.distinctNames || []); // 👈 Save local names
             } else {
-                    // Add month and year to the biometric API call
                     const [attRes, empRes] = await Promise.all([
                         fetch(API_BASE + `/api/attendance?month=${month}&year=${year}`, { headers }).then(r => r.json()),
                         fetch(API_BASE + '/api/employees', { headers }).then(r => r.json())
                     ]);
-                    const transformed = transformBiometric(attRes, Array.isArray(empRes) ? empRes : []);
+                    const empList = Array.isArray(empRes) ? empRes : [];
+                    setLocalEmployees(empList); // 👈 Save local employees
+                    
+                    const transformed = transformBiometric(attRes, empList);
                     const prefix = year + '-' + String(month).padStart(2, '0') + '-';
-                    // Filtering here is fine as a safety net, but data is already filtered by backend
                     setRecords(transformed.filter(r => r.date.startsWith(prefix)));
                 }
-                setSelectedDate('');
             } catch (err) { setError(err.message); }
             finally { setLoading(false); }
         };
@@ -114,13 +116,17 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
     const dayRecords = useMemo(() => {
         if (!activeDate) return [];
         
+        // 👇 Use local data as fallback if props are empty
+        const currentEmployees = employees.length > 0 ? employees : localEmployees;
+        const currentWhatsappNames = allWhatsappNames.length > 0 ? allWhatsappNames : localWhatsappNames;
+
         let baseList = [];
         if (source === 'biometric') {
-            baseList = employees.map(emp => ({ id: emp.id, name: emp.name, isMapped: true }));
+            baseList = currentEmployees.map(emp => ({ id: emp.id, name: emp.name, isMapped: true }));
         } else {
             const map = new Map();
-            allWhatsappNames.forEach(name => {
-                const mappedEmp = employees.find(e => e.name.toLowerCase() === name.toLowerCase());
+            currentWhatsappNames.forEach(name => {
+                const mappedEmp = currentEmployees.find(e => e.name.toLowerCase() === name.toLowerCase());
                 if (mappedEmp) map.set(String(mappedEmp.id), { id: String(mappedEmp.id), name: mappedEmp.name, isMapped: true });
                 else map.set(name, { id: name, name: name, isMapped: false });
             });
@@ -128,9 +134,8 @@ const AttendanceReport = ({ month: propMonth, year: propYear, source: propSource
                 const isUnmapped = !r.employeeId || String(r.employeeId).startsWith('unmapped_');
                 const key = isUnmapped ? r.name : String(r.employeeId);
                 
-                // 👇 FIX: If the unmapped record's name matches an employee, skip it (it's a duplicate)
                 if (isUnmapped) {
-                    const isAlreadyMapped = employees.some(e => e.name.toLowerCase() === r.name.toLowerCase());
+                    const isAlreadyMapped = currentEmployees.some(e => e.name.toLowerCase() === r.name.toLowerCase());
                     if (isAlreadyMapped) return; 
                 }
 
