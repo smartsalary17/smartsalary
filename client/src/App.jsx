@@ -16,6 +16,7 @@ import NameMappings from './pages/NameMappings';
 import Reports from './pages/Reports';
 import AttendancePDFExport from './pages/AttendancePDFExport';
 import { ToastProvider } from './context/ToastContext';
+import AttendanceReminder from './components/AttendanceReminder';
 
 const App = () => {
     const { loading, token, logout } = useWorkforce();
@@ -73,6 +74,7 @@ const renderPage = () => {
 
     return (
         <ToastProvider>
+             <AttendanceReminder /> 
         <div style={{ position: 'relative', minHeight: '100vh', overflowX: 'hidden' }}>
             {/* Background Decorations */}
             <div className="circle circle-1"></div>
