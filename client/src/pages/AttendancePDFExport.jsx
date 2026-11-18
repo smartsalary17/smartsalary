@@ -250,7 +250,7 @@ const AttendancePDFExport = () => {
     };
 
     return (
-        <div className="pg active" style={{ display: 'flex', gap: '20px', height: 'calc(100vh - 120px)', alignItems: 'flex-start' }}>
+        <div className="pg active export-layout" style={{ display: 'flex', gap: '20px', height: 'calc(100vh - 120px)', alignItems: 'flex-start' }}>
             <style>{`
                 .custom-scroll {
                     scrollbar-width: thin;
@@ -373,7 +373,7 @@ const AttendancePDFExport = () => {
             </div>
 
             {/* RIGHT SIDE: EXPORT SETTINGS */}
-            <div style={{ width: '350px', flexShrink: 0, height: '100%', display: 'flex', flexDirection: 'column', margin: 0, backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '24px' }}>
+            <div className="export-settings" style={{ width: '350px', flexShrink: 0, height: '100%', display: 'flex', flexDirection: 'column', margin: 0, backgroundColor: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '24px' }}>
                 <div style={{ marginBottom: '1rem', borderBottom: '1px dotted var(--border-color)', paddingBottom: '12px' }}>
                     <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>Export Settings</h2>
                 </div>
