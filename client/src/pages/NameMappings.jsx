@@ -188,7 +188,7 @@ const NameMappings = () => {
 
     return (
         <div className="pg active">
-            <div className="card">
+            <div className="card name-mappings-card">
                 <div className="ch">
                     <h2 className="ct">Name Mappings</h2>
                     <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{mappings.length} mapped</span>
@@ -199,7 +199,7 @@ const NameMappings = () => {
                 </p>
 
                 {/* 🔍 Search Box */}
-                <div style={{ position: 'relative', marginBottom: '1.5rem', maxWidth: '400px' }}>
+                <div className="nm-search-wrapper" style={{ position: 'relative', marginBottom: '1.5rem', maxWidth: '400px' }}>
                     <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                     <input
                         type="text"
@@ -220,7 +220,7 @@ const NameMappings = () => {
                 </div>
 
                 {/* 📝 Top Form (Dropdown + Input) */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: '0.75rem', marginBottom: '1.5rem', background: 'rgba(148, 163, 184, 0.05)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                <div className="nm-mapping-form" style={{ display: 'grid', gap: '0.75rem', marginBottom: '1.5rem', background: 'rgba(148, 163, 184, 0.05)', padding: '1rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
                     <div className="input-group">
                         <label>Employee (ID - Name)</label>
                         <select value={newEmpId} onChange={(e) => setNewEmpId(e.target.value)}>
@@ -264,7 +264,7 @@ const NameMappings = () => {
                 {loading ? (
                     <div style={{ textAlign: 'center', padding: '3rem' }}><Loader2 size={32} color="var(--primary)" style={{ animation: 'spin 1s linear infinite' }} /></div>
                 ) : (
-                    <div style={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                    <div className="nm-table-wrapper" style={{ overflowX: 'auto', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
                         <table style={{ margin: 0 }}>
                             <thead style={{ position: 'sticky', top: 0, background: 'var(--sidebar-bg)', zIndex: 1 }}>
                                 <tr>
@@ -274,14 +274,14 @@ const NameMappings = () => {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredEmployees.map((emp, index) => { // 👈 Add index here
+                                {filteredEmployees.map((emp, index) => {
                                     const mapping = mappings.find(m => String(m.empId) === String(emp.id));
                                     const aliases = mapping ? mapping.aliases : [];
                                     const isAdding = activeInlineEmpId === emp.id;
 
                                     return (
                                         <tr key={emp.id}>
-                                            <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>{index + 1}</td> {/* 👈 Add this */}
+                                            <td style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>{index + 1}</td> 
                                             <td>
                                                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                                                     <strong style={{ color: 'var(--primary)', fontSize: '0.95rem' }}>{emp.id} - {emp.name}</strong>
