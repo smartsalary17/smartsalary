@@ -1,13 +1,28 @@
+
 const Attendance = require('../models/Attendance');
 const PushSubscription = require('../models/PushSubscription');
 const NotificationLog = require('../models/NotificationLog');
+const AttendanceReminderSetting = require('../models/AttendanceReminderSetting');
 const { ensurePersistentStore } = require('../config/db');
 const { sendPushNotification } = require('./webPush');
-const config = require('../../shared/attendanceReminder.json');
+const fallbackConfig = require('../../shared/attendanceReminder.json');
 
-const getLocalDateTime = () => {
+const getReminderConfig = async () => {
+    const setting = await AttendanceReminderSetting.findOne({
+        key: 'attendance-reminder'
+    }).lean();
+
+    return {
+        enabled: setting?.enabled ?? true,
+        hour: setting?.hour ?? fallbackConfig.hour,
+        minute: setting?.minute ?? fallbackConfig.minute,
+        timezone: setting?.timezone || 'Asia/Kolkata'
+    };
+};
+
+const getLocalDateTime = (timezone) => {
     const parts = new Intl.DateTimeFormat('en-GB', {
-        timeZone: config.timezone,
+        timeZone: timezone,
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -24,7 +39,13 @@ const runAttendanceReminder = async () => {
         throw new Error('Persistent database is unavailable.');
     }
 
-    const now = getLocalDateTime();
+    const config = await getReminderConfig();
+
+    if (!config.enabled) {
+        return { status: 'disabled' };
+    }
+
+    const now = getLocalDateTime(config.timezone);
     const today = `${now.year}-${now.month}-${now.day}`;
     const currentMinutes = Number(now.hour) * 60 + Number(now.minute);
     const scheduledMinutes = config.hour * 60 + config.minute;
@@ -55,62 +76,72 @@ const runAttendanceReminder = async () => {
         throw error;
     }
 
-    const subscriptions = await PushSubscription.find().lean();
+    try {
+        const subscriptions = await PushSubscription.find().lean();
 
-    if (!subscriptions.length) {
-        await NotificationLog.updateOne(
-            { key },
-            { $set: { status: 'no_subscriptions' } }
+        if (!subscriptions.length) {
+            await NotificationLog.updateOne(
+                { key },
+                { $set: { status: 'no_subscriptions', total: 0, sent: 0, failed: 0 } }
+            );
+
+            return { status: 'no_subscriptions', date: today };
+        }
+
+        const results = await Promise.allSettled(
+            subscriptions.map(async subscription => {
+                try {
+                    await sendPushNotification(subscription, {
+                        title: 'SmartSalary Attendance Reminder',
+                        body: 'Today attendance has not been recorded yet. Please update attendance.',
+                        url: '/',
+                        tag: `attendance-reminder-${today}`
+                    });
+
+                    return true;
+                } catch (error) {
+                    if ([404, 410].includes(error.statusCode)) {
+                        await PushSubscription.deleteOne({
+                            _id: subscription._id
+                        });
+                    }
+
+                    throw error;
+                }
+            })
         );
 
-        return { status: 'no_subscriptions', date: today };
-    }
+        const sent = results.filter(result => result.status === 'fulfilled').length;
+        const failed = results.length - sent;
 
-    const results = await Promise.allSettled(
-        subscriptions.map(async subscription => {
-            try {
-                await sendPushNotification(subscription, {
-                    title: 'SmartSalary Attendance Reminder',
-                    body: 'Today attendance has not been recorded yet. Please update attendance.',
-                    url: '/',
-                    tag: `attendance-reminder-${today}`
-                });
+        const status = failed === 0 ? 'sent' : 'partial';
 
-                return true;
-            } catch (error) {
-                if ([404, 410].includes(error.statusCode)) {
-                    await PushSubscription.deleteOne({
-                        _id: subscription._id
-                    });
+        await NotificationLog.updateOne(
+            { key },
+            {
+                $set: {
+                    status,
+                    total: subscriptions.length,
+                    sent,
+                    failed
                 }
-
-                throw error;
             }
-        })
-    );
+        );
 
-    const sent = results.filter(result => result.status === 'fulfilled').length;
-    const failed = results.length - sent;
-
-    await NotificationLog.updateOne(
-        { key },
-        {
-            $set: {
-                status: failed === 0 ? 'sent' : sent > 0 ? 'partial' : 'partial',
-                total: subscriptions.length,
-                sent,
-                failed
-            }
-        }
-    );
-
-    return {
-        status: failed === 0 ? 'sent' : 'partial',
-        date: today,
-        total: subscriptions.length,
-        sent,
-        failed
-    };
+        return {
+            status,
+            date: today,
+            total: subscriptions.length,
+            sent,
+            failed
+        };
+    } catch (error) {
+        await NotificationLog.updateOne(
+            { key },
+            { $set: { status: 'partial' } }
+        );
+        throw error;
+    }
 };
 
 module.exports = { runAttendanceReminder };

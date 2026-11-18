@@ -33,6 +33,7 @@ const penaltyReportRouter = require('./routes/penaltyReport').route;
 const nameMappingsRouter = require('./routes/nameMappings').route;
 const cocoAttendanceRouter = require('./routes/cocoAttendance').route;
 const schedulerRouter = require('./routes/scheduler').route;
+const attendanceReminderSettingsRouter = require('./routes/attendanceReminderSettings').route;
 
 const app = express();
 const server = http.createServer(app);
@@ -58,7 +59,7 @@ app.use('/api/scheduler', schedulerRouter);
 app.use('/api', verifyToken);
 
 app.use('/api/push', pushRouter);
-
+app.use('/api/attendance-reminder-settings', attendanceReminderSettingsRouter);
 
 // App routes
 app.use('/api/coco-attendance', cocoAttendanceRouter);
@@ -93,7 +94,6 @@ server.on('error', (error) => {
     process.exit(1);
 });
 
-// Trigger reload to 3002
 server.listen(PORT, () => {
     console.log(`🚀 MERN Backend ACTIVE at http://localhost:${PORT}`);
 });
