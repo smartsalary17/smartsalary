@@ -1,13 +1,13 @@
 import { useEffect } from 'react';
 import { useWorkforce } from '../context/workforceShared';
 import { useToast } from '../context/ToastContext';
+import { ATTENDANCE_REMINDER_TIME } from '../context/workforceShared';
 
 const AttendanceReminder = () => {
     const { attendance } = useWorkforce();
     const { showToast } = useToast();
 
     useEffect(() => {
-        // Browser Notification Permission கேக்கணும்
         if ('Notification' in window && Notification.permission === 'default') {
             Notification.requestPermission();
         }
@@ -16,9 +16,7 @@ const AttendanceReminder = () => {
             const now = new Date();
             const todayStr = now.toISOString().split('T')[0];
             
-            // 👇 change time here if need to change ( 10:00 Pm then use 22:00)
-            const targetHour = 11; 
-            const targetMinute = 30; 
+            const { hour: targetHour, minute: targetMinute } = ATTENDANCE_REMINDER_TIME;
 
             const isPastTime = now.getHours() > targetHour || (now.getHours() === targetHour && now.getMinutes() >= targetMinute);
 

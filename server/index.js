@@ -6,6 +6,10 @@ try {
 } catch (e) {
     console.warn('Failed to set custom DNS servers, using system default:', e.message);
 }
+
+const attendanceReminderConfig = require('../shared/attendanceReminder.json');
+const pushRouter = require('./routes/push').route;
+
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
@@ -28,6 +32,7 @@ const attendanceReportRouter = require('./routes/attendanceReport').route;
 const penaltyReportRouter = require('./routes/penaltyReport').route;
 const nameMappingsRouter = require('./routes/nameMappings').route;
 const cocoAttendanceRouter = require('./routes/cocoAttendance').route;
+const schedulerRouter = require('./routes/scheduler').route;
 
 const app = express();
 const server = http.createServer(app);
@@ -46,8 +51,14 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // Public Auth routes
 app.use('/api/auth', authRouter);
 
+// Protected external scheduler endpoint
+app.use('/api/scheduler', schedulerRouter);
+
 // Protect all other /api routes
 app.use('/api', verifyToken);
+
+app.use('/api/push', pushRouter);
+
 
 // App routes
 app.use('/api/coco-attendance', cocoAttendanceRouter);

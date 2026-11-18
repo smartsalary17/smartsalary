@@ -1,4 +1,5 @@
 ﻿import { createContext, useContext } from 'react';
+import attendanceReminderConfig from '../../../shared/attendanceReminder.json';
 
 export const WorkforceContext = createContext();
 
@@ -20,4 +21,4 @@ export const BONUS_TIME_RANGES = {
   morningBatch:   { from: '05:15', to: '06:30', amount: 100, inclusiveTo: false },
 };
 
-
+export const ATTENDANCE_REMINDER_TIME = attendanceReminderConfig;

@@ -7,7 +7,7 @@
   "scripts": {
     "install-all": "npm install && cd client && npm install",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "nodemon server/index.js",
+    "server": "node --watch server/index.js",
     "client": "npm run dev --prefix client",
     "build": "npm run build --prefix client",
     "start": "node server/index.js"
@@ -20,11 +20,11 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^8.3.2",
     "node-cron": "^4.2.1",
-    "socket.io": "^4.7.5"
+    "socket.io": "^4.7.5",
+    "web-push": "^4.0.0"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
-    "nodemon": "^3.1.0"
+    "concurrently": "^8.2.2"
   },
   "overrides": {
     "qs": "^6.16.2"
