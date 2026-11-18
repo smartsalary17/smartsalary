@@ -320,7 +320,7 @@ export const WorkforceProvider = ({ children }) => {
         const newSocket = io(API_BASE);
 
         newSocket.on('state_changed', (data) => {
-            console.log('Live update received:', data);
+            // console.log('Live update received:', data);
             refreshData();
         });
 
