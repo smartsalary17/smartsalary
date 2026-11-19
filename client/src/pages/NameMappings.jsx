@@ -311,34 +311,69 @@ const NameMappings = () => {
                                                         );
                                                     })}
 
-                                                    {/* Inline Add Alias */}
-                                                    {isAdding ? (
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '4px', borderRadius: '8px' }}>
-                                                            <input 
-                                                                type="text" 
-                                                                value={inlineAlias} 
-                                                                onChange={(e) => setInlineAlias(e.target.value)} 
-                                                                placeholder="Type alias..." 
-                                                                style={{ padding: '6px 10px', fontSize: '0.8rem', width: '150px', background: 'var(--input-bg)', border: '1px solid var(--border-color)', color: 'var(--text-primary)', borderRadius: '6px' }} 
-                                                                autoFocus
-                                                                onKeyDown={(e) => e.key === 'Enter' && handleAddInline(emp)}
-                                                            />
-                                                            <button onClick={() => handleAddInline(emp)} disabled={saving} style={{ background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer', width: 'auto', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}>
-                                                                {saving ? <Loader2 size={14} className="animate-spin" /> : <><Check size={14} /> Save</>}
-                                                            </button>
-                                                            <button onClick={() => { setActiveInlineEmpId(null); setInlineAlias(''); }} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', width: 'auto', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}>
-                                                                <XCircle size={16} /> Cancel
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <button 
-                                                            onClick={() => { setActiveInlineEmpId(emp.id); setInlineAlias(''); setError(''); }} 
-                                                            className="secondary-btn small-btn" 
-                                                            style={{ width: 'auto', padding: '4px 10px', fontSize: '0.75rem', borderStyle: 'dashed' }}
-                                                        >
-                                                            <Plus size={14} /> Add Alias
-                                                        </button>
-                                                    )}
+
+{/* Inline Add Alias */}
+{isAdding ? (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '4px', borderRadius: '8px', flexWrap: 'wrap' }}>
+        <select
+            value={filteredUnmappedNames.includes(inlineAlias) ? inlineAlias : ''}
+            onChange={(e) => setInlineAlias(e.target.value)}
+            style={{
+                padding: '6px 8px',
+                fontSize: '0.8rem',
+                width: '150px',
+                background: 'var(--input-bg)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)',
+                borderRadius: '6px'
+            }}
+        >
+            <option value="">Select parser name</option>
+            {filteredUnmappedNames.map(name => (
+                <option key={name} value={name}>{name}</option>
+            ))}
+        </select>
+        <input
+            type="text"
+            value={inlineAlias}
+            onChange={(e) => setInlineAlias(e.target.value)}
+            placeholder="Or type alias..."
+            style={{
+                padding: '6px 10px',
+                fontSize: '0.8rem',
+                width: '150px',
+                background: 'var(--input-bg)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-primary)',
+                borderRadius: '6px'
+            }}
+            autoFocus
+            onKeyDown={(e) => e.key === 'Enter' && handleAddInline(emp)}
+        />
+        <button
+            onClick={() => handleAddInline(emp)}
+            disabled={saving}
+            style={{ background: 'var(--primary)', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer', width: 'auto', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
+        >
+            {saving ? <Loader2 size={14} className="animate-spin" /> : <><Check size={14} /> Save</>}
+        </button>
+        <button
+            onClick={() => { setActiveInlineEmpId(null); setInlineAlias(''); }}
+            style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', width: 'auto', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem' }}
+        >
+            <XCircle size={16} /> Cancel
+        </button>
+    </div>
+) : (
+    <button
+        onClick={() => { setActiveInlineEmpId(emp.id); setInlineAlias(''); setError(''); }}
+        className="secondary-btn small-btn"
+        style={{ width: 'auto', padding: '4px 10px', fontSize: '0.75rem', borderStyle: 'dashed' }}
+    >
+        <Plus size={14} /> Add Alias
+    </button>
+)}
+
                                                 </div>
                                             </td>
                                         </tr>
