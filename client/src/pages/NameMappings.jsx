@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, Loader2, Pencil, Save, XCircle, Search, Check } from 'lucide-react';
+import { Plus, Trash2, Loader2, Pencil, Save, XCircle, Search, Check ,ChevronDown } from 'lucide-react';
 import { API_BASE } from '../context/workforceShared';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from '../context/ToastContext';
@@ -315,24 +315,40 @@ const NameMappings = () => {
 {/* Inline Add Alias */}
 {isAdding ? (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '4px', borderRadius: '8px', flexWrap: 'wrap' }}>
-        <select
-            value={filteredUnmappedNames.includes(inlineAlias) ? inlineAlias : ''}
-            onChange={(e) => setInlineAlias(e.target.value)}
-            style={{
-                padding: '6px 8px',
-                fontSize: '0.8rem',
-                width: '150px',
-                background: 'var(--input-bg)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-primary)',
-                borderRadius: '6px'
-            }}
-        >
-            <option value="">Select parser name</option>
-            {filteredUnmappedNames.map(name => (
-                <option key={name} value={name}>{name}</option>
-            ))}
-        </select>
+        <div style={{ position: 'relative', width: '150px' }}>
+    <select
+        value={filteredUnmappedNames.includes(inlineAlias) ? inlineAlias : ''}
+        onChange={(e) => setInlineAlias(e.target.value)}
+        style={{
+            padding: '6px 28px 6px 8px',
+            fontSize: '0.8rem',
+            width: '100%',
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            background: 'var(--input-bg)',
+            border: '1px solid var(--border-color)',
+            color: 'var(--text-primary)',
+            borderRadius: '6px',
+            cursor: 'pointer'
+        }}
+    >
+        <option value=""> Select Unmapped Name</option>
+        {filteredUnmappedNames.map(name => (
+            <option key={name} value={name}>{name}</option>
+        ))}
+    </select>
+    <ChevronDown
+        size={15}
+        style={{
+            position: 'absolute',
+            right: '8px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            pointerEvents: 'none',
+            color: 'var(--text-primary)'
+        }}
+    />
+</div>
         <input
             type="text"
             value={inlineAlias}
