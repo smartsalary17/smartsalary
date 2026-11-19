@@ -56,6 +56,8 @@ const AttendancePDFExport = () => {
         return status.substring(0, 2).toUpperCase();
     };
 
+    const [whatsappEmployees, setWhatsappEmployees] = useState([]);
+
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
@@ -74,6 +76,26 @@ const AttendancePDFExport = () => {
                 setEmployees(empList);
 
                 const whatsapp = whatsappRes.records || [];
+const whatsappEmpList = [...new Map(
+    whatsapp
+        .filter(r => r.name?.trim())
+        .map(r => {
+            const matchedEmp = empList.find(
+                e => String(e.id) === String(r.employeeId) ||
+                     e.name?.trim().toLowerCase() === r.name.trim().toLowerCase()
+            );
+            return [
+                r.name.trim().toLowerCase(),
+                {
+                    id: matchedEmp ? String(matchedEmp.id) : `${r.name.trim().toLowerCase()}`,
+                    name: r.name.trim()
+                }
+            ];
+        })
+).values()];
+
+setWhatsappEmployees(whatsappEmpList);
+
                 const biometric = transformBiometric(biometricRes, empList).filter(r => r.date.startsWith(prefix));
 
                 let combined = [];
@@ -88,62 +110,85 @@ const AttendancePDFExport = () => {
         fetchData();
     }, [month, year, dataSource]);
 
+    const selectionEmployees = dataSource === 'whatsapp' ? whatsappEmployees : employees;
+
     const toggleEmployee = (id) => {
         setSelectedEmpIds(prev => prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]);
     };
 
-    const toggleAll = () => {
-        if (selectedEmpIds.length === employees.length) setSelectedEmpIds([]);
-        else setSelectedEmpIds(employees.map(e => String(e.id)));
-    };
+const toggleAll = () => {
+    if (selectedEmpIds.length === selectionEmployees.length) setSelectedEmpIds([]);
+    else setSelectedEmpIds(selectionEmployees.map(e => String(e.id)));
+};
 
-    const previewData = useMemo(() => {
-        const daysInMonth = new Date(year, month, 0).getDate();
-        const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+const previewData = useMemo(() => {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-        return selectedEmpIds.map(empId => {
-            const emp = employees.find(e => String(e.id) === String(empId));
-            // OT (otMins) நீக்கப்பட்டது
-            const stats = { P: 0, A: 0, WO: 0, HL: 0, LV: 0, workMins: 0 };
+    return selectedEmpIds.map(empId => {
+        const emp = selectionEmployees.find(e => String(e.id) === String(empId));
+        if (!emp) return null;
 
-            const empRecords = attRecords.filter(r => 
-                String(r.employeeId) === String(empId) || String(r.name).toLowerCase() === String(emp?.name).toLowerCase()
-            );
+        const stats = { P: 0, A: 0, WO: 0, HL: 0, LV: 0, workMins: 0 };
 
-            const daily = dates.map(d => {
-                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-                const record = empRecords.find(r => r.date === dateStr);
-                const st = mapStatus(record?.status);
-                const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(year, month - 1, d).getDay()];
-                
-                if (st === 'P' || st === 'HD') stats.P++;
-                else if (st === 'A') stats.A++;
-                else if (st === 'WO') stats.WO++;
-                else if (st === 'HL') stats.HL++;
-                else if (st === 'LV') stats.LV++;
-                
-                const workTime = record?.workTime || '00:00';
-                if (workTime !== '00:00' && workTime !== '--:--') stats.workMins += parseTime(workTime);
+        const empRecords = attRecords.filter(r =>
+            dataSource === 'whatsapp'
+                ? String(r.name || '').trim().toLowerCase() === emp.name.trim().toLowerCase()
+                : String(r.employeeId) === String(empId) ||
+                  String(r.name || '').trim().toLowerCase() === emp.name.trim().toLowerCase()
+        );
 
-                const breakTime = record?.breakTime || '01:00';
+        const daily = dates.map(d => {
+            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            const record = empRecords.find(r => r.date === dateStr);
+            const st = mapStatus(record?.status);
+            const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(year, month - 1, d).getDay()];
 
-                const isEmpty = !record;
-                const isOff = ['WO', 'A', 'HL', 'LV'].includes(st);
-                const isNoWork = isEmpty || isOff;
+            if (st === 'P' || st === 'HD') stats.P++;
+            else if (st === 'A') stats.A++;
+            else if (st === 'WO') stats.WO++;
+            else if (st === 'HL') stats.HL++;
+            else if (st === 'LV') stats.LV++;
 
-                return {
-                    in: isNoWork ? '---' : (record?.checkIn || '---'),
-                    out: isNoWork ? '---' : (record?.checkOut || '---'),
-                    work: isNoWork ? '---' : workTime,
-                    break: isNoWork ? '---' : breakTime,
-                    st: st === '--' ? 'A' : st,
-                    dayName
-                };
-            });
+            const isEmpty = !record;
+            const isOff = ['WO', 'A', 'HL', 'LV'].includes(st);
+            const isNoWork = isEmpty || isOff;
 
-            return { emp, records: daily, stats, dates };
-        }).filter(item => item.emp);
-    }, [selectedEmpIds, employees, attRecords, month, year]);
+            let workTime = record?.workTime || '00:00';
+            let breakTime = record?.breakTime || '01:00';
+
+            if (dataSource === 'whatsapp' && !isNoWork) {
+                const checkIn = record?.checkIn || record?.checkIns?.[0] || '';
+                const checkOut = record?.checkOut || record?.checkOuts?.[0] || '';
+
+                if (checkIn && checkOut) {
+                    let duration = parseTime(checkOut) - parseTime(checkIn);
+                    if (duration < 0) duration += 1440;
+                    workTime = formatTime(Math.max(0, duration - 60));
+                } else {
+                    workTime = '00:00';
+                }
+
+                breakTime = '01:00';
+            }
+
+            if (!isNoWork && workTime !== '00:00' && workTime !== '--:--') {
+                stats.workMins += parseTime(workTime);
+            }
+
+            return {
+                in: isNoWork ? '---' : (record?.checkIn || record?.checkIns?.[0] || '---'),
+                out: isNoWork ? '---' : (record?.checkOut || record?.checkOuts?.[0] || '---'),
+                work: isNoWork ? '---' : workTime,
+                break: isNoWork ? '---' : breakTime,
+                st: st === '--' ? 'A' : st,
+                dayName
+            };
+        });
+
+        return { emp, records: daily, stats, dates };
+    }).filter(Boolean);
+}, [selectedEmpIds, selectionEmployees, attRecords, dataSource, month, year]);
 
     const generatePDF = () => {
         if (selectedEmpIds.length === 0) return alert("Please select at least one employee.");
@@ -187,7 +232,7 @@ const AttendancePDFExport = () => {
                     currentY = 15;
                 }
 
-                // Top Header Block (OT நீக்கப்பட்டது)
+                // Top Header Block (OT ?????????????)
                 autoTable(doc, {
                     startY: currentY,
                     body: [
@@ -196,7 +241,7 @@ const AttendancePDFExport = () => {
                             `Present`, String(stats.P), `WO`, String(stats.WO), 
                             `HL`, String(stats.HL), `LV`, String(stats.LV), 
                             `Absent`, String(stats.A), 
-                            `Tot. Work`, formatTime(stats.workMins) // OT நீக்கப்பட்டது
+                            `Tot. Work`, formatTime(stats.workMins) // OT ?????????????
                         ]
                     ],
                     theme: 'grid',
@@ -216,11 +261,11 @@ const AttendancePDFExport = () => {
                 const breakRow = ['Break', ...records.map(r => r.break)];
                 const statusRow = ['Status', ...records.map(r => r.st)];
 
-                // Main Table (OT Row நீக்கப்பட்டது)
+                // Main Table (OT Row ?????????????)
                 autoTable(doc, {
                     startY: doc.lastAutoTable.finalY,
                     head: [dayRow, dayNameRow],
-                    body: [inRow, outRow, workRow, breakRow, statusRow], // OT Row நீக்கப்பட்டது
+                    body: [inRow, outRow, workRow, breakRow, statusRow], // OT Row ?????????????
                     theme: 'grid',
                     pageBreak: 'avoid',
                     styles: { fontSize: 7, cellPadding: 1.5, halign: 'center', textColor: [0, 0, 0], lineColor: [200, 200, 200], lineWidth: 0.1, overflow: 'linebreak' },
@@ -302,7 +347,7 @@ const AttendancePDFExport = () => {
                             <div className="preview-scroll-wrapper custom-scroll">
                                 <div className="preview-inner">
                                     
-                                    {/* Top Summary Block (OT நீக்கப்பட்டது) */}
+                                    {/* Top Summary Block (OT ?????????????) */}
                                     <table style={{ borderCollapse: 'collapse', fontSize: '11px', whiteSpace: 'nowrap', width: '100%', marginBottom: '10px' }}>
                                         <tbody>
                                             <tr>
@@ -326,7 +371,7 @@ const AttendancePDFExport = () => {
                                         </tbody>
                                     </table>
 
-                                    {/* Main Grid Table (OT Row நீக்கப்பட்டது) */}
+                                    {/* Main Grid Table (OT Row ?????????????) */}
                                     <table className="preview-table">
                                         <tbody>
                                             <tr style={{ background: 'var(--input-bg)', fontWeight: 'bold' }}>
@@ -353,7 +398,7 @@ const AttendancePDFExport = () => {
                                                 <td style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>Break</td>
                                                 {records.map((r, i) => <td key={i}>{r.break}</td>)}
                                             </tr>
-                                            {/* OT Row நீக்கப்பட்டது */}
+                                            {/* OT Row ????????????? */}
                                             <tr>
                                                 <td style={{ textAlign: 'left', paddingLeft: '8px', fontWeight: 'bold' }}>Status</td>
                                                 {records.map((r, i) => (
@@ -392,13 +437,13 @@ const AttendancePDFExport = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                     <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>Select Employees ({selectedEmpIds.length})</span>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                        {selectedEmpIds.length > 0 && selectedEmpIds.length !== employees.length && (
+                        {selectedEmpIds.length > 0 && selectedEmpIds.length !== selectionEmployees.length && (
                             <button onClick={() => setSelectedEmpIds([])} style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', fontSize: '0.8rem', width: 'auto' }}>
                                 Clear
                             </button>
                         )}
                         <button onClick={toggleAll} style={{ background: 'transparent', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.8rem', width: 'auto' }}>
-                            {selectedEmpIds.length === employees.length ? 'Deselect All' : 'Select All'}
+                            {selectedEmpIds.length === selectionEmployees.length ? 'Deselect All' : 'Select All'}
                         </button>
                     </div>
                 </div>
@@ -406,10 +451,10 @@ const AttendancePDFExport = () => {
                 <div className="custom-scroll" style={{ flex: 1, overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.5rem', backgroundColor: 'var(--input-bg)', marginBottom: '1.5rem' }}>
                     {loading ? (
                         <div style={{ textAlign: 'center', padding: '2rem' }}><Loader2 size={24} className="animate-spin" color="var(--text-primary)" /></div>
-                    ) : employees.length === 0 ? (
+                    ) : selectionEmployees.length === 0 ? (
                         <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-secondary)' }}>No employees found.</div>
                     ) : (
-                        employees.map(emp => {
+                        selectionEmployees.map(emp => {
                             const isSelected = selectedEmpIds.includes(String(emp.id));
                             return (
                                 <div key={emp.id} onClick={() => toggleEmployee(String(emp.id))} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', borderRadius: '4px', background: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'transparent', transition: 'all 0.2s' }}>
@@ -424,10 +469,15 @@ const AttendancePDFExport = () => {
                     )}
                 </div>
 
-                <button className="primary-btn" onClick={generatePDF} disabled={generating || selectedEmpIds.length === 0} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '1rem', marginTop: 'auto' }}>
-                    {generating ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
-                    {generating ? 'Generating PDF...' : 'Download PDF'}
-                </button>
+<button
+    className="primary-btn"
+    onClick={generatePDF}
+    disabled={generating || selectedEmpIds.length === 0}
+    style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '1rem', marginTop: 'auto' }}
+>
+    {generating ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+    {generating ? 'Generating PDF...' : 'Download PDF'}
+</button>
             </div>
         </div>
     );
