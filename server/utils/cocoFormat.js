@@ -61,6 +61,7 @@ function resolveEmpId(name, aliasMap) {
        return aliasMap.get(key) || ('unmapped_' + key); 
 }
 
+
 function convertAttendance(cocoRecords, mappings, employees = []) {
     if (!cocoRecords) cocoRecords = [];
     const aliasMap = buildAliasMap(mappings);
@@ -76,34 +77,12 @@ function convertAttendance(cocoRecords, mappings, employees = []) {
         const checkIn = checkIns[0] || normalizeTime(r.checkIn);
         const checkOut = checkOuts[0] || normalizeTime(r.checkOut);
 
-            let finalStatus = deriveStatus(r);
-    const empId = resolveEmpId(name, aliasMap);
-
-    // 🟢 GRACE TIME & LATE LOGIC
-    if (finalStatus === 'present' && checkIn && checkIn !== '-') {
-        const emp = employees.find(e => String(e.id) === String(empId));
-        const scheduledCheckIn = emp?.checkin || '09:00';
-        const graceMins = 10; // Hardcoded 10 mins here
-
-        const timeToMins = (tStr) => {
-            if (!tStr) return -1;
-            const parts = String(tStr).split(':');
-            if (parts.length < 2) return -1;
-            return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-        };
-
-        const inMins = timeToMins(checkIn);
-        const limitMins = timeToMins(scheduledCheckIn) + graceMins;
-        const isEarlyAM = (inMins >= 2 * 60 + 15) && (inMins <= 2 * 60 + 30);
-
-        if (inMins > limitMins && !isEarlyAM) {
-            finalStatus = 'late';
-        }
-    }
+        const finalStatus = deriveStatus(r);
+        const empId = resolveEmpId(name, aliasMap);
 
         out.push({
             date,
-            employeeId: resolveEmpId(name, aliasMap),
+            employeeId: empId,
             name,
             status: finalStatus,
             checkIn,
@@ -122,6 +101,7 @@ function convertAttendance(cocoRecords, mappings, employees = []) {
     }
     return out;
 }
+
 
 function convertPenalty(cocoRecords, mappings) {
     if (!cocoRecords) cocoRecords = [];
