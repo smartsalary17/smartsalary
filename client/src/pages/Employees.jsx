@@ -38,9 +38,9 @@ const EMPTY_FORM = {
 };
 
 const DOCUMENT_TYPES = [
-    { type: 'aadhaar', label: 'Aadhaar Card', required: true },
-    { type: 'bank', label: 'Bank Proof', required: true },
-    { type: 'voterId', label: 'Voter ID', required: true },
+    { type: 'aadhaar', label: 'Aadhaar Card', required: false },
+    { type: 'bank', label: 'Bank Proof', required: false },
+    { type: 'voterId', label: 'Voter ID', required: false },
     { type: 'drivingLicence', label: 'Driving Licence', required: false }
 ];
 
