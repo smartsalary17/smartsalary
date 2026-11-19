@@ -511,21 +511,11 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                                 const currentIsTime = ['present', 'late', 'half-day'].includes(emp.status);
                                 const currentIsOff = ['absent', 'weekoff', 'sick_leave', 'holiday', 'office_leave'].includes(emp.status);
 
-                                let isDisabled = isLocked;
-
-                                if (!isLocked) {
-                                    if (currentIsTime) {
-                                        // 1. If currently present/late/half-day, lock everything else
-                                        isDisabled = emp.status !== st;
-                                    } else if (currentIsOff) {
-                                        // 2. If currently absent/weekoff/sick/holiday, allow switching to other off-statuses, but block time-statuses
-                                        isDisabled = isTimeStatus;
-                                    } else {
-                                        // 3. If no status is set yet, use the time check
-                                        if (hasTime && isOffStatus) isDisabled = true;
-                                        if (!hasTime && isTimeStatus) isDisabled = true;
-                                    }
-                                }
+const isDisabled = isLocked || (
+    currentIsTime ? isOffStatus :
+    currentIsOff ? isTimeStatus :
+    false
+);
 
                                 return (
                                     <span
@@ -581,7 +571,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                                 <span style={{ fontSize: '0.7rem', background: '#3b82f6', color: 'white', padding: '2px 6px', borderRadius: '12px' }}>Biometric</span>
                             )}
                             {emp.isCoco && (
-                                <span style={{ fontSize: '0.7rem', background: '#8b5cf6', color: 'white', padding: '2px 6px', borderRadius: '12px' }}>COCO</span>
+                                <span style={{ fontSize: '0.7rem', background: '#8b5cf6', color: 'white', padding: '2px 6px', borderRadius: '12px' }}>WhatsApp</span>
                             )}
                         </div>
                     </div>
