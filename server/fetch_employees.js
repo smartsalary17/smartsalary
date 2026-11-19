@@ -11,9 +11,9 @@ const MONGO_URI = process.env.MONGO_URI;
 const getBiometricConfigs = () => {
     return [
         {
-            corpId: process.env.ETIMEO_CORPORATE_ID || 'MICROBOTWARE',
-            username: process.env.ETIMEO_USERNAME || 'DHAMODHARAN',
-            password: process.env.ETIMEO_PASSWORD || 'sana@6789'
+            corpId: process.env.ETIMEO_CORPORATE_ID ,
+            username: process.env.ETIMEO_USERNAME ,
+            password: process.env.ETIMEO_PASSWORD 
         },
         {
             corpId: process.env.ETIMEO_CORPORATE_ID_2,
