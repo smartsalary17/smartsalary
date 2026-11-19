@@ -213,7 +213,7 @@ const previewData = useMemo(() => {
             doc.setFontSize(16);
             doc.setFont('helvetica', 'bold');
             doc.setTextColor(30, 41, 59);
-            doc.text("TIME OFFICE REPORT", pageWidth - 14, 15, { align: 'right' });
+            doc.text(`ATTENDANCE REPORT - ${dataSource === 'system' ? 'BIOMETRIC' : 'WHATSAPP'}`, pageWidth - 14, 15, { align: 'right' });
             
             doc.setFontSize(11);
             doc.setFont('helvetica', 'normal');
@@ -287,7 +287,7 @@ const previewData = useMemo(() => {
                 currentY = doc.lastAutoTable.finalY + 8; 
             });
             
-            doc.save(`TimeOffice_Report_${MONTHS[month - 1]}_${year}.pdf`);
+            doc.save(`Attendance_Report_${dataSource === 'system' ? 'Biometric' : 'Whatsapp'}_${MONTHS[month - 1]}_${year}.pdf`);
         } catch (err) {
             console.error(err); alert("Failed to generate PDF.");
         } finally { setGenerating(false); }
@@ -423,7 +423,7 @@ const previewData = useMemo(() => {
                 </div>
                 
                 <div style={{ display: 'flex', gap: '0.25rem', padding: '0.25rem', backgroundColor: 'var(--input-bg)', borderRadius: '10px', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
-                    <button className={'small-btn ' + (dataSource === 'system' ? 'primary-btn' : 'secondary-btn')} onClick={() => setDataSource('system')} style={{ padding: '0.4rem 0.8rem', width: '100%', flex: 1 }}>System</button>
+                    <button className={'small-btn ' + (dataSource === 'system' ? 'primary-btn' : 'secondary-btn')} onClick={() => setDataSource('system')} style={{ padding: '0.4rem 0.8rem', width: '100%', flex: 1 }}>Biometric</button>
                     <button className={'small-btn ' + (dataSource === 'whatsapp' ? 'primary-btn' : 'secondary-btn')} onClick={() => setDataSource('whatsapp')} style={{ padding: '0.4rem 0.8rem', width: '100%', flex: 1 }}>WhatsApp</button>
                 </div>
 
