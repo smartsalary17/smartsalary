@@ -838,16 +838,6 @@ const handleRemoveAsset = async (type) => {
                     </section>
 
                     <section className="ed-document-section">
-                        <div className="ed-section-title"><Landmark size={19} /><div><h3>Bank & identity details</h3><p>Payroll and statutory information</p></div></div>
-                        <div className="ed-form-grid four-col">
-                            <FormField label="Aadhaar number"><input value={formData.aadhaarNumber} onChange={(event) => updateForm('aadhaarNumber', event.target.value)} placeholder="0000 0000 0000" inputMode="numeric" /></FormField>
-                            <FormField label="Bank name"><input value={formData.bankName} onChange={(event) => updateForm('bankName', event.target.value)} placeholder="Bank name" /></FormField>
-                            <FormField label="Account number"><input value={formData.bankAccount} onChange={(event) => updateForm('bankAccount', event.target.value)} placeholder="Account number" inputMode="numeric" /></FormField>
-                            <FormField label="IFSC code"><input value={formData.bankIfsc} onChange={(event) => updateForm('bankIfsc', event.target.value.toUpperCase())} placeholder="ABCD0123456" /></FormField>
-                        </div>
-                    </section>
-
-                    <section className="ed-document-section">
                         <div className="ed-section-title"><BriefcaseBusiness size={19} /><div><h3>Work details</h3><p>Employment, payroll and attendance settings</p></div></div>
                         <div className="ed-form-grid three-col">
                             <FormField label="Employee ID" required error={fieldErrors.id}>
@@ -901,6 +891,16 @@ const handleRemoveAsset = async (type) => {
                         )}
                     </section>
 
+                    <section className="ed-document-section">
+                        <div className="ed-section-title"><Landmark size={19} /><div><h3>Bank & identity details</h3><p>Payroll and statutory information</p></div></div>
+                        <div className="ed-form-grid four-col">
+                            <FormField label="Aadhaar number"><input value={formData.aadhaarNumber} onChange={(event) => updateForm('aadhaarNumber', event.target.value)} placeholder="0000 0000 0000" inputMode="numeric" /></FormField>
+                            <FormField label="Bank name"><input value={formData.bankName} onChange={(event) => updateForm('bankName', event.target.value)} placeholder="Bank name" /></FormField>
+                            <FormField label="Account number"><input value={formData.bankAccount} onChange={(event) => updateForm('bankAccount', event.target.value)} placeholder="Account number" inputMode="numeric" /></FormField>
+                            <FormField label="IFSC code"><input value={formData.bankIfsc} onChange={(event) => updateForm('bankIfsc', event.target.value.toUpperCase())} placeholder="ABCD0123456" /></FormField>
+                        </div>
+                    </section>
+
                     <section className="ed-document-section ed-upload-section">
                         <div className="ed-section-title"><FileText size={19} /><div><h3>Documents</h3><p>Aadhaar, bank proof and voter ID are mandatory. Driving licence is optional.</p></div></div>
                         {assetError && <div className="ed-inline-error">{assetError}</div>}
@@ -948,16 +948,6 @@ const handleRemoveAsset = async (type) => {
                     </section>
 
                     <section className="ed-document-section">
-                        <div className="ed-section-title"><Landmark size={19} /><div><h3>Bank & identity details</h3><p>Payroll and statutory information</p></div></div>
-                        <div className="ed-detail-grid four-col">
-                            <DetailItem label="Aadhaar number" value={selectedEmployee.aadhaarNumber} />
-                            <DetailItem label="Bank name" value={selectedEmployee.bankName} />
-                            <DetailItem label="Account number" value={selectedEmployee.bankAccount} />
-                            <DetailItem label="IFSC code" value={selectedEmployee.bankIfsc} />
-                        </div>
-                    </section>
-
-                    <section className="ed-document-section">
                         <div className="ed-section-title"><BriefcaseBusiness size={19} /><div><h3>Work details</h3><p>Employment, payroll and attendance settings</p></div></div>
                         <div className="ed-detail-grid four-col">
                             <DetailItem label="Employee ID" value={selectedEmployee.id} />
@@ -971,6 +961,16 @@ const handleRemoveAsset = async (type) => {
                         </div>
                     </section>
 
+                    <section className="ed-document-section">
+                        <div className="ed-section-title"><Landmark size={19} /><div><h3>Bank & identity details</h3><p>Payroll and statutory information</p></div></div>
+                        <div className="ed-detail-grid four-col">
+                            <DetailItem label="Aadhaar number" value={selectedEmployee.aadhaarNumber} />
+                            <DetailItem label="Bank name" value={selectedEmployee.bankName} />
+                            <DetailItem label="Account number" value={selectedEmployee.bankAccount} />
+                            <DetailItem label="IFSC code" value={selectedEmployee.bankIfsc} />
+                        </div>
+                    </section>
+                    
                     <section className="ed-document-section ed-upload-section">
                         <div className="ed-section-title"><FileText size={19} /><div><h3>Documents</h3><p>Download uploaded documents for this employee.</p></div></div>
                         {assetLoading ? <div className="ed-document-loading">Loading documents…</div> : renderDocumentCards('view')}
