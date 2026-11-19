@@ -125,8 +125,7 @@ const AttendancePDFExport = () => {
                 const workTime = record?.workTime || '00:00';
                 if (workTime !== '00:00' && workTime !== '--:--') stats.workMins += parseTime(workTime);
 
-                // OT கணக்கீடு நீக்கப்பட்டது
-                const breakTime = record?.breakTime || '00:00';
+                const breakTime = record?.breakTime || '01:00';
 
                 const isEmpty = !record;
                 const isOff = ['WO', 'A', 'HL', 'LV'].includes(st);
