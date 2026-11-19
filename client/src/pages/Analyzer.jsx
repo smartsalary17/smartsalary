@@ -139,7 +139,7 @@ const Analyzer = ({ setPage }) => {
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || 'Clear failed.');
             
-            showToast(`Deleted ${data.deletedAttendance} WhatsApp attendance rows from DB.`, 'success');
+            showToast(`Deleted ${data.deletedAttendance} attendance and ${data.deletedPenalty} penalty rows.`, 'success');
             clearAll(); 
             setHasDbData(false);
         } catch (err) {
@@ -547,7 +547,7 @@ const Analyzer = ({ setPage }) => {
             <ConfirmModal
                 isOpen={showClearModal}
                 title="Delete Data?"
-                message="Are you sure? This will delete all WhatsApp analyzed Attendance data from the database. Penalty data and Biometric data will NOT be affected."
+                message="Are you sure? This will delete ALL WhatsApp analyzed Attendance AND Penalty data from the database. Biometric data will NOT be affected."
                 confirmText="Yes, Delete Data"
                 onConfirm={() => {
                     setShowClearModal(false);

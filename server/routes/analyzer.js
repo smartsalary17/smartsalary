@@ -186,12 +186,19 @@ router.delete('/', async (req, res, next) => {
         if (!shouldUseMockStore() && !(await ensurePersistentStore())) {
             return await respondStorageUnavailable(res);
         }
+        
+        // Delete both Attendance and Penalty records
         const atDel = await AttendanceRecord.deleteMany({ source: 'coco_analyze' });
+        const penDel = await PenaltyRecord.deleteMany({ source: 'coco_penalty' });
         
         const io = req.app.get('io');
         if (io) io.emit('state_changed', { type: 'coco_import' });
         
-        return res.json({ success: true, deletedAttendance: atDel.deletedCount });
+        return res.json({ 
+            success: true, 
+            deletedAttendance: atDel.deletedCount,
+            deletedPenalty: penDel.deletedCount
+        });
     } catch (e) { next(e); }
 });
 
