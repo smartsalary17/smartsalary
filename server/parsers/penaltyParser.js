@@ -427,21 +427,31 @@ function resolveKnownTarget(candidate, allNames, mappings = [], resolver, exactN
         ? resolved
         : '';
 }
+
 function extractMentionTargetsBeforeAmount(text, start, end, allNames, mappings = [], resolver, exactNameMap) {
     const before = text.slice(start, end);
+    // 👇 Added (?:\s+\d+)? to capture names with numbers (e.g. "Vasanth 2")
     const matches = [
-        ...before.matchAll(/@\s*(?:⁨([^⁩]+)⁩|([~A-Za-z][A-Za-z0-9._~-]*))/g),
+        ...before.matchAll(/@\s*(?:⁨([^⁩]+)⁩|([~A-Za-z][A-Za-z0-9._~-]*(?:\s+\d+)?))/g),
     ];
     const targets = [];
     for (const match of matches) {
-        const mention = match[1] || match[2] || '';
+        let mention = match[1] || match[2] || '';
         const mentionIndex = match.index ?? -1;
         if (mentionIndex < 0)
             continue;
         const afterMention = before.slice(mentionIndex + match[0].length);
-        // A leading sender/notification mention such as
-        // "@Sheesha Smart Penalty ..." is not a target when
-        // another explicit target exists.
+
+        // 👇 Strip the number if it's not a valid employee name (e.g. "vasanth 500" -> "vasanth")
+        if (/\s+\d+$/.test(mention)) {
+            const baseMention = mention.replace(/\s+\d+$/, '');
+            const resolvedFull = resolveMentionToEmployee(mention, allNames, mappings, resolver, exactNameMap);
+            const resolvedBase = resolveMentionToEmployee(baseMention, allNames, mappings, resolver, exactNameMap);
+            if (exactNameMap?.has(resolvedFull?.toLowerCase()) === false && exactNameMap?.has(resolvedBase?.toLowerCase()) === true) {
+                mention = baseMention;
+            }
+        }
+
         if (/\b(?:penalty|pennalty)\b/i.test(afterMention.slice(0, 25)) &&
             matches.length > 1) {
             continue;
@@ -454,6 +464,7 @@ function extractMentionTargetsBeforeAmount(text, start, end, allNames, mappings 
     }
     return [...new Set(targets)];
 }
+
 function extractAmountSpecificTargets(text, current, previousAmountEnd, nextAmountIndex, allNames, mappings = [], resolver, exactNameMap) {
     const beforeAmount = text.slice(previousAmountEnd, current.index);
     const afterAmount = text.slice(current.end, nextAmountIndex);
@@ -553,27 +564,29 @@ function extractAmountSpecificTargets(text, current, previousAmountEnd, nextAmou
      *
      * Do NOT use a mention when it starts a new penalty segment.
      */
+    // 👇 Added (?:\s+\d+)? to the regex
     const afterMentions = [
-        ...afterAmount.matchAll(/@\s*(?:⁨([^⁩]+)⁩|([A-Za-z][A-Za-z0-9._~-]*))/g),
+        ...afterAmount.matchAll(/@\s*(?:⁨([^⁩]+)⁩|([A-Za-z][A-Za-z0-9._~-]*(?:\s+\d+)?))/g),
     ];
     if (afterMentions.length > 0) {
         const targets = [];
         for (const match of afterMentions) {
-            const mention = match[1] || match[2] || '';
+            let mention = match[1] || match[2] || '';
             const mentionStart = match.index ?? -1;
             if (mentionStart < 0)
                 continue;
             const afterMention = afterAmount.slice(mentionStart + match[0].length);
-            /*
-             * If this mention is followed by "also penalty"
-             * or another "penalty", it belongs to the next
-             * penalty amount, not the current amount.
-             *
-             * Example:
-             * ₹450 ... @AK also penalty ₹1300
-             *
-             * AK must NOT be assigned to ₹450.
-             */
+
+            // 👇 Strip the number if it's not a valid employee name
+            if (/\s+\d+$/.test(mention)) {
+                const baseMention = mention.replace(/\s+\d+$/, '');
+                const resolvedFull = resolveMentionToEmployee(mention, allNames, mappings, resolver, exactNameMap);
+                const resolvedBase = resolveMentionToEmployee(baseMention, allNames, mappings, resolver, exactNameMap);
+                if (exactNameMap?.has(resolvedFull?.toLowerCase()) === false && exactNameMap?.has(resolvedBase?.toLowerCase()) === true) {
+                    mention = baseMention;
+                }
+            }
+
             if (/\b(?:also\s+)?penalty\b/i.test(afterMention.slice(0, 30))) {
                 continue;
             }
