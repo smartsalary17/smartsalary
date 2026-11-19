@@ -16,9 +16,9 @@ const getBiometricConfigs = () => {
             password: process.env.ETIMEO_PASSWORD || 'sana@6789'
         },
         {
-            corpId: process.env.ETIMEO_CORPORATE_ID_2 || 'SMARTHELP',
-            username: process.env.ETIMEO_USERNAME_2 || 'DHAMODHARAN',
-            password: process.env.ETIMEO_PASSWORD_2 || 'sana@6789'
+            corpId: process.env.ETIMEO_CORPORATE_ID_2,
+            username: process.env.ETIMEO_USERNAME_2 ,
+            password: process.env.ETIMEO_PASSWORD_2 
         }
     ].filter(config => config.corpId && config.username && config.password);
 };
