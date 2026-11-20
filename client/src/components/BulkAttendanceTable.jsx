@@ -492,9 +492,9 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px', marginTop: '1rem' }}>
+            <div className="bulk-employee-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '20px', marginTop: '1rem' }}>
                 {tempBulk.map(emp => (
-                    <div key={emp.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '15px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}>
+                    <div key={emp.id} className="bulk-employee-card" style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '15px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid rgba(148, 163, 184, 0.2)', paddingBottom: '12px' }}>
                             <div className="av">{emp.name[0]}</div>
                             <span style={{ fontWeight: 'bold', fontSize: '1.05rem', color: 'var(--text-primary)' }}>{emp.name}</span>
@@ -536,29 +536,29 @@ const isDisabled = isLocked || (
                             })}
                         </div>
                         
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                        <div className="bulk-time-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'nowrap' }}>
                             {/* IN Time Input */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.1)', padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.2)' }}>
+                            <div className="bulk-time-field" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.1)', padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.2)' }}>
                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>IN:</span>
                                 <input
                                     type="time"
                                     value={['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status) ? '' : emp.time}
                                     className="bulk-time-input"
                                     disabled={isLocked || emp.isBiometric || ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status)}
-                                    style={{ border: 'none', background: 'transparent', padding: 0, height: 'auto', width: '85px', color: 'var(--warning)', fontWeight: 700, cursor: isLocked || emp.isBiometric ? 'not-allowed' : 'text' }}
+                                    style={{ border: 'none', background: 'transparent', padding: 0, height: 'auto', width: '100%', color: 'var(--warning)', fontWeight: 700, cursor: isLocked || emp.isBiometric ? 'not-allowed' : 'text' }}
                                     onChange={(e) => updateTemp(emp.id, { time: e.target.value })}
                                 />
                             </div>
 
                             {/* OUT Time Input */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.1)', padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.2)' }}>
+                            <div className="bulk-time-field" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.1)', padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.2)' }}>
                                 <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>OUT:</span>
                                 <input
                                     type="time"
                                     value={['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status) ? '' : (emp.outTime !== '--:--' ? emp.outTime : '')}
                                     className="bulk-time-input"
                                     disabled={isLocked || emp.isBiometric || ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status)}
-                                    style={{ border: 'none', background: 'transparent', padding: 0, height: 'auto', width: '85px', color: 'var(--warning)', fontWeight: 700, cursor: isLocked || emp.isBiometric ? 'not-allowed' : 'text' }}
+                                    style={{ border: 'none', background: 'transparent', padding: 0, height: 'auto', width: '100%', color: 'var(--warning)', fontWeight: 700, cursor: isLocked || emp.isBiometric ? 'not-allowed' : 'text' }}
                                     onChange={(e) => updateTemp(emp.id, { outTime: e.target.value })}
                                 />
                             </div>

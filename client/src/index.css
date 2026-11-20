@@ -3868,3 +3868,40 @@ button:active {
     box-shadow: none !important;
     filter: grayscale(0.5);
 }
+
+@media (max-width: 760px) {
+    .bulk-employee-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+    .bulk-employee-card {
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    .bulk-time-field {
+        flex: 1 1 130px;
+        min-width: 0;
+        box-sizing: border-box;
+    }
+    .bulk-time-field input {
+        flex: 1;
+        min-width: 0;
+        width: 100% !important;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+@media (max-width: 760px) {
+    .bulk-time-row {
+        flex-wrap: nowrap !important;
+        gap: 8px !important;
+    }
+    .bulk-time-field {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+    .bulk-time-field input {
+        min-width: 0;
+        width: 100% !important;
+    }
+}
