@@ -6,6 +6,7 @@ const mockStore = require('../config/mockStore');
 const { shouldUseMockStore, ensurePersistentStore, respondStorageUnavailable } = require('../config/db');
 const axios = require('axios');
 const { getBiometricConfigs, getBiometricCredentials } = require('../services/biometricSync');
+const NameMapping = require('../models/NameMapping');
 
 const ASSET_TYPES = new Set(['photo', 'aadhaar', 'bank', 'voterId', 'drivingLicence']);
 const DOCUMENT_MIME_TYPES = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
@@ -57,41 +58,37 @@ const getEmployees = async () => {
 };
 
 const syncEmployees = async (employees = []) => {
+    if (!Array.isArray(employees)) {
+        throw new Error('Employees must be an array.');
+    }
+
     if (shouldUseMockStore()) {
-        mockStore.mockEmployees = [...employees].sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true, sensitivity: 'base' }));
-        const activeIds = new Set(employees.map(emp => String(emp.id)));
-        for (const [key, asset] of mockStore.mockEmployeeAssets.entries()) {
-            if (!activeIds.has(String(asset.employeeId))) {
-                mockStore.mockEmployeeAssets.delete(key);
-            }
-        }
+        const employeeMap = new Map(
+            mockStore.mockEmployees.map(emp => [String(emp.id), emp])
+        );
+
+        employees.forEach(emp => {
+            if (emp?.id == null) return;
+            employeeMap.set(String(emp.id), { ...employeeMap.get(String(emp.id)), ...emp });
+        });
+
+        mockStore.mockEmployees = [...employeeMap.values()].sort((a, b) =>
+            String(a.id).localeCompare(String(b.id), undefined, { numeric: true, sensitivity: 'base' })
+        );
         return;
     }
 
-    if (employees.length === 0) {
-        const count = await Employee.countDocuments();
-        if (count > 0) {
-            console.warn('[Sync] Received empty employees array from client, but MongoDB has records. Skipping destructive sync.');
-            return;
-        }
-    }
-
-    const employeeIds = employees.map(emp => emp.id);
-    await Employee.deleteMany({ id: { $nin: employeeIds } });
-    await EmployeeAsset.deleteMany({ employeeId: { $nin: employeeIds } });
-
-    if (employees.length === 0) {
-        return;
-    }
+    if (employees.length === 0) return;
 
     await Employee.bulkWrite(
-        employees.map(emp => {
+        employees.filter(emp => emp?.id != null).map(emp => {
             const employeeData = { ...emp };
             delete employeeData._id;
             delete employeeData.__v;
+
             return {
                 updateOne: {
-                    filter: { id: emp.id },
+                    filter: { id: String(emp.id) },
                     update: { $set: employeeData },
                     upsert: true
                 }
@@ -356,6 +353,46 @@ router.post('/sync/biometric', async (req, res, next) => {
             count: biometricEmployees.length,
             message: `Successfully synced ${biometricEmployees.length} employee(s) from biometric system.`
         });
+    } catch (e) {
+        next(e);
+    }
+});
+
+router.delete('/:id', async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        if (!shouldUseMockStore() && !(await ensurePersistentStore())) {
+            return await respondStorageUnavailable(res);
+        }
+
+        if (shouldUseMockStore()) {
+            const index = mockStore.mockEmployees.findIndex(emp => String(emp.id) === String(id));
+
+            if (index === -1) {
+                return res.status(404).json({ error: 'Employee not found.' });
+            }
+
+            mockStore.mockEmployees.splice(index, 1);
+
+            for (const [key, asset] of mockStore.mockEmployeeAssets.entries()) {
+                if (String(asset.employeeId) === String(id)) {
+                    mockStore.mockEmployeeAssets.delete(key);
+                }
+            }
+        } else {
+            const deletedEmployee = await Employee.findOneAndDelete({ id });
+
+            if (!deletedEmployee) {
+                return res.status(404).json({ error: 'Employee not found.' });
+            }
+
+            await NameMapping.deleteOne({ empId: id });
+            await EmployeeAsset.deleteMany({ employeeId: id });
+        }
+
+        req.app.get('io').emit('state_changed', { type: 'employees' });
+        res.json({ success: true });
     } catch (e) {
         next(e);
     }

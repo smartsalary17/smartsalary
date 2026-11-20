@@ -347,6 +347,17 @@ export const WorkforceProvider = ({ children }) => {
         }
     }, [hasPendingSync]);
 
+    const deleteEmployee = async (employeeId) => {
+    try {
+        await axios.delete(`${API_BASE}/api/employees/${encodeURIComponent(employeeId)}`);
+        setEmployees(current => current.filter(employee => String(employee.id) !== String(employeeId)));
+        return { success: true };
+    } catch (error) {
+        captureSyncError(error, 'Unable to delete employee right now.');
+        throw error;
+    }
+};
+
     const saveEmployees = async (newEmployees) => {
         const previousEmployees = employees;
         setEmployees(newEmployees);
@@ -431,6 +442,7 @@ export const WorkforceProvider = ({ children }) => {
         hasPendingSync,
         refreshData,
         saveEmployees,
+        deleteEmployee,
         saveAttendanceRecord,
         saveBulkAttendance,
         saveRules

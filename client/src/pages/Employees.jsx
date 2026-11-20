@@ -182,7 +182,7 @@ const DocumentCard = ({
 };
 
 const Employees = () => {
-    const { employees, saveEmployees } = useWorkforce();
+    const { employees, saveEmployees, deleteEmployee } = useWorkforce();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -615,20 +615,20 @@ const handleRemoveAsset = async (type) => {
         }
     };
 
-    const handleDelete = async () => {
-        if (!selectedEmployee || !window.confirm(`Delete ${selectedEmployee.name}? Attendance records will not be changed.`)) return;
-        try {
-            setSaving(true);
-            await saveEmployees(employees.filter(employee => employee.id !== selectedEmployee.id));
-            setSelectedEmployeeId('');
-            setIsFormOpen(false);
-        } catch (error) {
-            console.error('Delete employee failed:', error);
-            setAssetError(error?.response?.data?.error || 'Unable to delete this employee.');
-        } finally {
-            setSaving(false);
-        }
-    };
+const handleDelete = async () => {
+    if (!selectedEmployee || !window.confirm(`Delete ${selectedEmployee.name}? Attendance records will not be changed.`)) return;
+    try {
+        setSaving(true);
+        await deleteEmployee(selectedEmployee.id);
+        setSelectedEmployeeId('');
+        setIsFormOpen(false);
+    } catch (error) {
+        console.error('Delete employee failed:', error);
+        setAssetError(error?.response?.data?.error || 'Unable to delete this employee.');
+    } finally {
+        setSaving(false);
+    }
+};
 
     const renderPhoto = (className = '') => {
         const source = pendingPhotoUrl || photoUrl;
