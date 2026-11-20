@@ -25,7 +25,7 @@ const styles = `
   font-family: Inter, system-ui, -apple-system, sans-serif;
 }
 .ss-brand { display: flex; align-items: center; gap: 12px; padding: 0 8px 28px; }
-.ss-brand img { width: 40px; height: 40px; object-fit: contain; background: #fff; border-radius: 10px; padding: 4px; }
+.ss-brand img { width: 86px; height: 86px; object-fit: contain; background: transparent; border-radius: 0; padding: 0; }
 .ss-brand-title { font-size: 17px; font-weight: 700; letter-spacing: -.4px; }
 .ss-brand-subtitle { margin-top: 4px; font-size: 12px; color: var(--text-secondary); }
 .ss-section-label { margin: 0 12px 12px; font-size: 11px; font-weight: 600; letter-spacing: 1.4px; color: var(--text-secondary); }
