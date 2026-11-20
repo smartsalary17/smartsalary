@@ -16,6 +16,7 @@ import {
     X
 } from 'lucide-react';
 import { useWorkforce, DAYSHORT, API_BASE } from '../context/workforceShared';
+import ConfirmModal from '../components/ConfirmModal';
 
 const EMPTY_FORM = {
     id: '',
@@ -203,6 +204,7 @@ const Employees = () => {
     const [pendingPhotoUrl, setPendingPhotoUrl] = useState('');
     const [fieldErrors, setFieldErrors] = useState({});
     const [removeDocument, setRemoveDocument] = useState(null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
     const selectedEmployee = employees.find(employee => employee.id === selectedEmployeeId);
 
@@ -510,11 +512,15 @@ const handleRemoveAsset = async (type) => {
     }
 };
 
-    const focusField = (field) => {
-        requestAnimationFrame(() => {
-            document.querySelector(`[data-field="${field}"]`)?.focus();
-        });
-    };
+const focusField = (field) => {
+    requestAnimationFrame(() => {
+        const input = document.querySelector(`[data-field="${field}"]`);
+        if (!input) return;
+
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        input.focus({ preventScroll: true });
+    });
+};
 
     const handleSave = async () => {
         setAssetError('');
@@ -546,25 +552,25 @@ const handleRemoveAsset = async (type) => {
             });
         }
 
-        if (Object.keys(errors).length) {
-            setFieldErrors(errors);
+if (Object.keys(errors).length) {
+    setFieldErrors(errors);
 
-            if (errors.name) {
-                focusField('name');
-            } else if (errors.salary) {
-                focusField('salary');
-            } else {
-                const missingDocument = DOCUMENT_TYPES.find(
-                    documentType => errors[documentType.type]
-                );
+    const firstInvalidField = ['name', 'id', 'salary', 'checkin'].find(
+        field => errors[field]
+    );
 
-                if (missingDocument) {
-                    focusField(missingDocument.type);
-                }
-            }
+    if (firstInvalidField) {
+        focusField(firstInvalidField);
+    } else {
+        const missingDocument = DOCUMENT_TYPES.find(
+            documentType => errors[documentType.type]
+        );
 
-            return;
-        }
+        if (missingDocument) focusField(missingDocument.type);
+    }
+
+    return;
+}
 
         setFieldErrors({});
 
@@ -616,10 +622,12 @@ const handleRemoveAsset = async (type) => {
     };
 
 const handleDelete = async () => {
-    if (!selectedEmployee || !window.confirm(`Delete ${selectedEmployee.name}? Attendance records will not be changed.`)) return;
+    if (!deleteTarget) return;
+
     try {
         setSaving(true);
-        await deleteEmployee(selectedEmployee.id);
+        await deleteEmployee(deleteTarget.id);
+        setDeleteTarget(null);
         setSelectedEmployeeId('');
         setIsFormOpen(false);
     } catch (error) {
@@ -841,13 +849,13 @@ const handleDelete = async () => {
                         <div className="ed-section-title"><BriefcaseBusiness size={19} /><div><h3>Work details</h3><p>Employment, payroll and attendance settings</p></div></div>
                         <div className="ed-form-grid three-col">
                             <FormField label="Employee ID" required error={fieldErrors.id}>
-                                <input 
-        data-field="id" 
-        value={editingEmployeeId || formData.id} 
-        onChange={(event) => updateForm('id', event.target.value)} 
-        placeholder="Enter Employee ID" 
-        disabled={Boolean(editingEmployeeId)} 
-    />
+<input
+    data-field="id"
+    value={editingEmployeeId || formData.id}
+    onChange={(event) => updateForm('id', event.target.value)}
+    placeholder="Enter Employee ID"
+    disabled={Boolean(editingEmployeeId)}
+/>
     </FormField>
                             <FormField label="Designation"><input value={formData.role} onChange={(event) => updateForm('role', event.target.value)} placeholder="e.g. Accountant" /></FormField>
                             <FormField label="Department"><input value={formData.dept} onChange={(event) => updateForm('dept', event.target.value)} placeholder="e.g. Finance" /></FormField>
@@ -930,7 +938,14 @@ const handleDelete = async () => {
                         </div>
                         <div className="ed-header-actions">
                             <button type="button" className="ed-secondary-action" onClick={startEditEmployee}><Pencil size={16} /> Edit</button>
-                            <button type="button" className="ed-danger-action" onClick={handleDelete} disabled={saving}><Trash2 size={16} /> Delete</button>
+                            <button
+    type="button"
+    className="ed-danger-action"
+    onClick={() => setDeleteTarget(selectedEmployee)}
+    disabled={saving}
+>
+    <Trash2 size={16} /> Delete
+</button>
                         </div>
                     </header>
 
@@ -986,6 +1001,17 @@ const handleDelete = async () => {
                     <p>Choose an employee from the list above to open their record, or create a new employee profile.</p>
                 </div>
             )}
+
+            <ConfirmModal
+    isOpen={!!deleteTarget}
+    title="Delete Employee?"
+    message={deleteTarget ? `Are you sure you want to delete ${deleteTarget.name}? Their Name Mapping and uploaded assets will also be deleted. Attendance and penalty history will remain unchanged.` : ''}
+    confirmText="Delete"
+    cancelText="Cancel"
+    danger={true}
+    onConfirm={handleDelete}
+    onCancel={() => setDeleteTarget(null)}
+/>
         </div>
     );
 };
