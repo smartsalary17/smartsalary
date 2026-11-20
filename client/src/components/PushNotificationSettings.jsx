@@ -391,7 +391,7 @@ style={{
                                     background: 'var(--input-bg, var(--card-bg, #fff))',
                                     color: 'inherit',
                                     fontSize: 14,
-                                    colorScheme: 'light dark'
+                                    // colorScheme: 'light dark'
                                 }}
                             />
 
