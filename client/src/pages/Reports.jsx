@@ -51,7 +51,7 @@ const Reports = () => {
     
     // Ported states from PdfSummaryReport
     const [selectedSummaryDates, setSelectedSummaryDates] = useState([]);
-    const [timeZones, setTimeZones] = useState([{ start: '02:15', end: '02:45' }, { start: '05:00', end: '05:15' }, { start: '05:00', end: '06:30' }]);
+    const [timeZones, setTimeZones] = useState([{ start: '02:15', end: '02:45' }, { start: '05:00', end: '05:15' }, { start: '05:15', end: '06:30' }]);
     const isFirstLoad = useRef(true);
 
     const deduplicatedAttRecords = useMemo(() => {
