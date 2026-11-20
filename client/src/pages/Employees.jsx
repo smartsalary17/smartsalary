@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useWorkforce, DAYSHORT, API_BASE } from '../context/workforceShared';
 import ConfirmModal from '../components/ConfirmModal';
+import { useToast } from '../context/ToastContext';
 
 const EMPTY_FORM = {
     id: '',
@@ -183,6 +184,7 @@ const DocumentCard = ({
 };
 
 const Employees = () => {
+    const { showToast } = useToast();
     const { employees, saveEmployees, deleteEmployee } = useWorkforce();
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
@@ -610,12 +612,16 @@ if (Object.keys(errors).length) {
                 }
             }
 
-            setSelectedEmployeeId(employeeId);
-            setAssetVersion(version => version + 1);
-            closeForm();
+setSelectedEmployeeId(employeeId);
+setAssetVersion(version => version + 1);
+closeForm();
+showToast(
+    editingEmployeeId ? 'Employee updated successfully!' : 'Employee added successfully!',
+    'success'
+);
         } catch (error) {
             console.error('Save employee failed:', error);
-            setFormError(error?.response?.data?.error || 'Unable to save this employee. Please try again.');
+            showToast(error?.response?.data?.error || 'Unable to save this employee.', 'error');
         } finally {
             setSaving(false);
         }
@@ -630,9 +636,10 @@ const handleDelete = async () => {
         setDeleteTarget(null);
         setSelectedEmployeeId('');
         setIsFormOpen(false);
+        showToast(`${deleteTarget.name || deleteTarget.id} deleted successfully!`, 'success');
     } catch (error) {
         console.error('Delete employee failed:', error);
-        setAssetError(error?.response?.data?.error || 'Unable to delete this employee.');
+        showToast(error?.response?.data?.error || 'Unable to delete this employee.', 'error');
     } finally {
         setSaving(false);
     }
