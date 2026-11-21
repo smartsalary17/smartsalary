@@ -124,6 +124,11 @@ const Reports = () => {
             finally { setLoading(false); }
         };
         fetchData();
+
+        window.addEventListener('name-mappings-updated', fetchData);
+        return () => {
+            window.removeEventListener('name-mappings-updated', fetchData);
+        };
     }, [month, year, source, employees.length]);
 
     const allDates = useMemo(() => Array.from(new Set(attRecords.map(r => r.date))).sort().reverse(), [attRecords]);
