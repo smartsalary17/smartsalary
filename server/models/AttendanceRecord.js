@@ -4,6 +4,7 @@ const AttendanceRecordSchema = new mongoose.Schema({
     date: { type: String, required: true, index: true },
     employeeId: { type: String, index: true },
     name: { type: String, required: true, index: true },
+    originalName: { type: String, default: '', index: true },
     status: { type: String, required: true },
     checkIn: { type: String, default: '' },
     checkOut: { type: String, default: '' },
