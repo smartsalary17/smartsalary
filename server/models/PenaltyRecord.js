@@ -4,6 +4,7 @@ const PenaltyRecordSchema = new mongoose.Schema({
     date: { type: String, required: true, index: true },
     employeeId: { type: String, index: true },
     name: { type: String, required: true, index: true },
+    originalName: { type: String, default: '', index: true },
     displayName: { type: String, default: '' },
     penalty: { type: Number, default: 0 },
     penaltyReason: { type: String, default: '' },
