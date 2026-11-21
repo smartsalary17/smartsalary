@@ -40,10 +40,15 @@ async function autoAppendAliases(messages, mappings, employees) {
         const resolvedName = resolver.resolveOriginal(sender);
         if (!resolvedName) continue;
         
-        // 👇 FIX: Use case-insensitive exact match
-        const emp = employees.find(e => e.name.trim().toLowerCase() === resolvedName.trim().toLowerCase());
-        if (!emp) continue;
-        
+
+const matchingEmployees = employees.filter(
+    e => String(e.name || '').trim().toLowerCase() === String(resolvedName || '').trim().toLowerCase()
+);
+
+if (matchingEmployees.length !== 1) continue;
+
+const emp = matchingEmployees[0];
+
         // 👇 FIX: Skip if sender is exactly the employee's name (case-insensitive)
         if (sender.toLowerCase() === emp.name.toLowerCase()) continue;
         
@@ -80,16 +85,29 @@ async function autoAppendAliases(messages, mappings, employees) {
             await mapping.save({ validateBeforeSave: false });
         }
 
+
         // 👇 ADD THIS: Update existing Attendance and Penalty records instantly
         // 👇 FIX: Update both employeeId and name in existing records
         for (const alias of aliases) {
             await AttendanceRecord.updateMany(
                 { name: { $regex: `^${escapeRegex(alias)}$`, $options: 'i' } },
-                { $set: { employeeId: String(empId), name: emp.name } } // Added name here
+                {
+                    $set: {
+                        employeeId: String(empId),
+                        name: emp.name,
+                        originalName: alias
+                    }
+                }
             );
             await PenaltyRecord.updateMany(
                 { name: { $regex: `^${escapeRegex(alias)}$`, $options: 'i' } },
-                { $set: { employeeId: String(empId), name: emp.name } } // Added name here
+                {
+                    $set: {
+                        employeeId: String(empId),
+                        name: emp.name,
+                        originalName: alias
+                    }
+                }
             );
         }
     }
