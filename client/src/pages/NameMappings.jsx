@@ -11,6 +11,9 @@ const NameMappings = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const { showToast } = useToast();
+const notifyMappingsUpdated = () => {
+    window.dispatchEvent(new Event('name-mappings-updated'));
+};
     // Top Form State
     const [newEmpId, setNewEmpId] = useState('');
     const [newAlias, setNewAlias] = useState('');
@@ -101,6 +104,7 @@ const NameMappings = () => {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
+            notifyMappingsUpdated();
             setNewAlias('');
             setNewEmpId('');
             await fetchData();
@@ -131,7 +135,7 @@ const NameMappings = () => {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error);
-            
+            notifyMappingsUpdated();
             setInlineAlias('');
             setActiveInlineEmpId(null);
             await fetchData();
@@ -142,19 +146,24 @@ const NameMappings = () => {
 
     const handleDeleteAlias = (empId, alias) => setDeleteTarget({ empId, alias });
 
-    const confirmDeleteAlias = async () => {
-        if (!deleteTarget) return;
-        try {
-            const token = localStorage.getItem('wf_auth_token');
-            await fetch(API_BASE + '/api/name-mappings/' + encodeURIComponent(deleteTarget.empId) + '/alias/' + encodeURIComponent(deleteTarget.alias), {
-                method: 'DELETE',
-                headers: token ? { Authorization: 'Bearer ' + token } : {}
-            });
-            setDeleteTarget(null);
-            await fetchData();
-            showToast('Alias deleted successfully!', 'success'); 
-        } catch (err) { showToast(err.message, 'error'); }
-    };
+const confirmDeleteAlias = async () => {
+    if (!deleteTarget) return;
+    try {
+        const token = localStorage.getItem('wf_auth_token');
+        const res = await fetch(API_BASE + '/api/name-mappings/' + encodeURIComponent(deleteTarget.empId) + '/alias/' + encodeURIComponent(deleteTarget.alias), {
+            method: 'DELETE',
+            headers: token ? { Authorization: 'Bearer ' + token } : {}
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to delete alias');
+        notifyMappingsUpdated();
+        setDeleteTarget(null);
+        await fetchData();
+        showToast('Alias deleted successfully!', 'success');
+    } catch (err) {
+        showToast(err.message, 'error');
+    }
+};
 
     const handleEditAlias = (empId, alias) => {
         setEditingAlias({ empId, oldAlias: alias });
@@ -180,6 +189,7 @@ const NameMappings = () => {
                 body: JSON.stringify({ oldAlias: editingAlias.oldAlias, newAlias: editAliasValue.trim() })
             });
             if (!res.ok) throw new Error('Failed to update alias');
+            notifyMappingsUpdated();
             setEditingAlias(null);
             await fetchData();
             showToast('Alias updated successfully!', 'success');
