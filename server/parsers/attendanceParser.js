@@ -4,7 +4,7 @@ exports.parseAttendance = parseAttendance;
 const attendanceUtils_1 = require("./attendanceUtils");
 const ATTENDANCE_FILLER_WORDS = new Set([
     'i', 'iam', 'am', 'im', 'me', 'my', 'myself', 'sir', 'madam', 'akka', 'anna',
-    'please', 'today', 'now', 'check', 'in', 'out', 'checkin', 'checkout',
+    'please', 'today', 'now', 'timing', 'mam', 'check', 'in', 'out', 'checkin', 'checkout',
     'login', 'logout', 'full', 'day', 'filed', 'fullday'
 ]);
 function normalizeAttendanceText(text) {
@@ -16,7 +16,8 @@ function normalizeAttendanceText(text) {
 function isSpecificCheckInText(text) {
     const normalizedText = normalizeAttendanceText(text);
     return (normalizedText.includes('checkin') ||
-        normalizedText.includes('chekin'));
+        normalizedText.includes('chekin') ||
+        /\bchecking\b/i.test(text));
 }
 function isSpecificCheckOutText(text) {
     return normalizeAttendanceText(text).includes('checkout');
@@ -70,7 +71,7 @@ function isAttendanceFillerText(value) {
 }
 function resolveCandidateName(candidate, resolver) {
     const cleaned = cleanPossibleName(candidate);
-    if (!cleaned) {
+    if (!cleaned || /\d/.test(cleaned)) {
         return null;
     }
     if (isKnownEmployeeName(cleaned, resolver)) {
@@ -79,12 +80,17 @@ function resolveCandidateName(candidate, resolver) {
     if (isAttendanceFillerText(cleaned)) {
         return null;
     }
+    const words = cleaned.split(/\s+/);
+    if (words.length > 3 || words.some(word => !/^[A-Za-z][A-Za-z._-]*$/.test(word))) {
+        return null;
+    }
     return cleaned;
 }
+
 function getAttendanceKeyword(text, phrase) {
-    const keywords = phrase === 'checkIn'
-        ? ['checkin', 'chekin']
-        : ['checkout'];
+const keywords = phrase === 'checkIn'
+    ? ['checking', 'checkin', 'chekin']
+    : ['checkout'];
     let normalizedText = '';
     const originalIndexes = [];
     for (let index = 0; index < text.length; index++) {
@@ -125,6 +131,7 @@ function cleanAttendanceTail(value) {
         .replace(/^sir\b[\s:,-]*\*?/i, '')
         .trim();
 }
+
 function extractExplicitAttendanceName(text, phrase, resolver) {
     const keyword = getAttendanceKeyword(text, phrase);
     if (!keyword) {
@@ -172,6 +179,10 @@ function extractExplicitAttendanceName(text, phrase, resolver) {
     cleanedAfter = cleanedAfter
         .replace(/^\*{0,2}\(\s*\*?\d{1,2}(?::|\.)\d{1,2}\s*\*?(?:am|pm)?\s*\)?\*{0,2}/i, '')
         .trim();
+    // Remove trailing attendance time before cleaning the employee name.
+    cleanedAfter = cleanedAfter
+        .replace(/\s+\(?\d{1,2}(?::|\.)\d{1,2}\)?\s*(?:am|pm)?\s*$/i, '')
+        .trim();
     cleanedAfter = cleanPossibleName(cleanedAfter
         .replace(/[()[\]*\\,:.-]+/g, ' ')
         .replace(/\s+/g, ' '));
@@ -181,11 +192,9 @@ function extractExplicitAttendanceName(text, phrase, resolver) {
     if (/^\*{0,2}\(?\s*\*?\d{1,2}(?::|\.)\d{1,2}\s*\*?(?:am|pm)?\s*\)?\*{0,2}$/i.test(cleanedAfter)) {
         return null;
     }
-    if (isKnownEmployeeName(cleanedAfter, resolver)) {
-        return resolver.resolve(cleanedAfter);
-    }
-    return null;
+return resolveCandidateName(cleanedAfter, resolver);
 }
+
 function normalizeAttendanceTime(value) {
     const cleaned = value
         .trim()
