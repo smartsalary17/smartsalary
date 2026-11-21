@@ -3,6 +3,7 @@ const NameMapping = require('../models/NameMapping');
 const Employee = require('../models/Employee');
 const AttendanceRecord = require('../models/AttendanceRecord');
 const PenaltyRecord = require('../models/PenaltyRecord');
+
 const { ensurePersistentStore, respondStorageUnavailable, shouldUseMockStore } = require('../config/db');
 
 const router = express.Router();
@@ -34,25 +35,63 @@ router.post('/', async (req, res, next) => {
         }
 
         let mapping = await NameMapping.findOne({ empId: cleanEmpId });
-        if (!mapping) {
-            mapping = new NameMapping({ employeeName: cleanName, empId: cleanEmpId, aliases: [cleanAlias] });
-        } else {
-            mapping.employeeName = cleanName;
-            if (!mapping.aliases.includes(cleanAlias)) {
-                mapping.aliases.push(cleanAlias);
-            }
+
+        const existingAliasMapping = await NameMapping.findOne({
+            empId: { $ne: cleanEmpId },
+            aliases: { $regex: '^' + escapeRegex(cleanAlias) + '$', $options: 'i' }
+        });
+
+        if (existingAliasMapping) {
+            return res.status(409).json({
+                error: 'This alias is already mapped to another employee.'
+            });
         }
+
+if (!mapping) {
+    mapping = new NameMapping({ employeeName: cleanName, empId: cleanEmpId, aliases: [cleanAlias] });
+} else {
+    mapping.employeeName = cleanName;
+    const alreadyExists = mapping.aliases.some(
+        a => a.trim().toLowerCase() === cleanAlias.toLowerCase()
+    );
+    if (alreadyExists) {
+        return res.status(409).json({ error: 'This alias is already mapped to this employee.' });
+    }
+    mapping.aliases.push(cleanAlias);
+}
         await mapping.save();
 
-    await AttendanceRecord.updateMany(
-        { name: { $regex: '^' + escapeRegex(cleanAlias) + '$', $options: 'i' } },
-        { $set: { employeeId: cleanEmpId ,name: cleanName } }
-    ).catch(() => {});
+        await AttendanceRecord.updateMany(
+            {
+                $or: [
+                    { originalName: { $regex: '^' + escapeRegex(cleanAlias) + '$', $options: 'i' } },
+                    { name: { $regex: '^' + escapeRegex(cleanAlias) + '$', $options: 'i' } }
+                ]
+            },
+            {
+                $set: {
+                    employeeId: cleanEmpId,
+                    name: cleanName,
+                    originalName: cleanAlias
+                }
+            }
+        );
 
-    await PenaltyRecord.updateMany(
-        { name: { $regex: '^' + escapeRegex(cleanAlias) + '$', $options: 'i' } },
-        { $set: { employeeId: cleanEmpId ,name: cleanName } }
-    ).catch(() => {});
+        await PenaltyRecord.updateMany(
+            {
+                $or: [
+                    { originalName: { $regex: '^' + escapeRegex(cleanAlias) + '$', $options: 'i' } },
+                    { name: { $regex: '^' + escapeRegex(cleanAlias) + '$', $options: 'i' } }
+                ]
+            },
+            {
+                $set: {
+                    employeeId: cleanEmpId,
+                    name: cleanName,
+                    originalName: cleanAlias
+                }
+            }
+        );
 
         res.json({ success: true, mapping });
     } catch (e) {
@@ -67,27 +106,82 @@ router.get('/unmapped', async (req, res, next) => {
         const attNames = await AttendanceRecord.distinct('name', { employeeId: { $regex: '^unmapped_' } });
         const penNames = await PenaltyRecord.distinct('name', { employeeId: { $regex: '^unmapped_' } });
         
-        const allUnmapped = [...new Set([...attNames, ...penNames])];
-        res.json({ success: true, unmappedNames: allUnmapped });
+const allUnmapped = [...new Set([...attNames, ...penNames])];
+res.json({ success: true, unmappedNames: allUnmapped });
     } catch (e) { next(e); }
 });
 
-// ✅ ONLY UPDATES ALIAS & BYPASSES VALIDATION
 router.put('/:empId', async (req, res, next) => {
     try {
         const { oldAlias, newAlias } = req.body;
-        const mapping = await NameMapping.findOne({ empId: req.params.empId });
-        if (!mapping) return res.status(404).json({ error: 'Mapping not found.' });
+        const empId = req.params.empId;
+        const cleanOldAlias = String(oldAlias || '').trim();
+        const cleanNewAlias = String(newAlias || '').trim();
 
-        if (oldAlias && newAlias) {
-            mapping.aliases = mapping.aliases.map(a => a === oldAlias ? newAlias : a);
+        if (!cleanOldAlias || !cleanNewAlias) {
+            return res.status(400).json({ error: 'oldAlias and newAlias required.' });
         }
 
-        // This bypasses the 'employeeName is required' error for old records
-        await mapping.save({ validateBeforeSave: false }); 
-        
+        const mapping = await NameMapping.findOne({ empId });
+        if (!mapping) return res.status(404).json({ error: 'Mapping not found.' });
+
+const oldAliasExists = mapping.aliases.some(
+    a => a.toLowerCase() === cleanOldAlias.toLowerCase()
+);
+
+if (!oldAliasExists) {
+    return res.status(404).json({ error: 'Old alias not found in this employee mapping.' });
+}
+
+        const existingAliasMapping = await NameMapping.findOne({
+            empId: { $ne: empId },
+            aliases: { $regex: '^' + escapeRegex(cleanNewAlias) + '$', $options: 'i' }
+        });
+
+        if (existingAliasMapping) {
+            return res.status(409).json({
+                error: 'This alias is already mapped to another employee.'
+            });
+        }
+
+        const duplicateInSameEmployee = mapping.aliases.some(
+            a => a.toLowerCase() === cleanNewAlias.toLowerCase() &&
+                 a.toLowerCase() !== cleanOldAlias.toLowerCase()
+        );
+
+        if (duplicateInSameEmployee) {
+            return res.status(409).json({
+                error: 'This alias already exists for this employee.'
+            });
+        }
+
+        mapping.aliases = mapping.aliases.map(a =>
+            a.toLowerCase() === cleanOldAlias.toLowerCase() ? cleanNewAlias : a
+        );
+
+        await mapping.save({ validateBeforeSave: false });
+
+        await AttendanceRecord.updateMany(
+            {
+                employeeId: empId,
+                originalName: { $regex: '^' + escapeRegex(cleanOldAlias) + '$', $options: 'i' }
+            },
+            { $set: { originalName: cleanNewAlias } }
+        );
+
+        await PenaltyRecord.updateMany(
+            {
+                employeeId: empId,
+                originalName: { $regex: '^' + escapeRegex(cleanOldAlias) + '$', $options: 'i' }
+            },
+            { $set: { originalName: cleanNewAlias } }
+        );
+
         res.json({ success: true, mapping });
-    } catch (e) { next(e); }
+    } catch (e) {
+        if (e.code === 11000) return res.status(409).json({ error: 'Duplicate mapping.' });
+        next(e);
+    }
 });
 
 router.delete('/:empId/alias/:alias', async (req, res, next) => {
@@ -97,18 +191,43 @@ router.delete('/:empId/alias/:alias', async (req, res, next) => {
         
         // 👇 FIX: Revert Attendance and Penalty records back to unmapped
         const aliasToRemove = req.params.alias;
-        const unmappedId = `unmapped_${aliasToRemove.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        const cleanAlias = String(aliasToRemove || '').trim();
+if (!cleanAlias) {
+    return res.status(400).json({ error: 'Alias is required.' });
+}
+
+
+        const unmappedId = `unmapped_${Buffer.from(cleanAlias, 'utf8').toString('hex')}`;
         
         await AttendanceRecord.updateMany(
-            { name: { $regex: '^' + escapeRegex(aliasToRemove) + '$', $options: 'i' }, employeeId: req.params.empId },
-            { $set: { employeeId: unmappedId } }
-        );
-        await PenaltyRecord.updateMany(
-            { name: { $regex: '^' + escapeRegex(aliasToRemove) + '$', $options: 'i' }, employeeId: req.params.empId },
-            { $set: { employeeId: unmappedId } }
+            {
+                originalName: { $regex: '^' + escapeRegex(aliasToRemove) + '$', $options: 'i' },
+                employeeId: req.params.empId
+            },
+            {
+                $set: {
+                    name: aliasToRemove,
+                    employeeId: unmappedId
+                }
+            }
         );
 
-        mapping.aliases = mapping.aliases.filter(a => a !== aliasToRemove);
+        await PenaltyRecord.updateMany(
+            {
+                originalName: { $regex: '^' + escapeRegex(aliasToRemove) + '$', $options: 'i' },
+                employeeId: req.params.empId
+            },
+            {
+                $set: {
+                    name: aliasToRemove,
+                    employeeId: unmappedId
+                }
+            }
+        );
+
+        mapping.aliases = mapping.aliases.filter(
+    a => a.trim().toLowerCase() !== cleanAlias.toLowerCase()
+);
         if (mapping.aliases.length === 0) {
             await NameMapping.deleteOne({ _id: mapping._id });
         } else {
