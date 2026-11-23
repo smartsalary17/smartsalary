@@ -360,6 +360,10 @@ useEffect(() => {
         }
     };
 
+    const preventWheelChange = (e) => {
+    e.currentTarget.blur();
+};
+
     return (
         <div className="pg active">
             <section className="calculator-card" style={{ marginTop: 0 }}>
@@ -379,40 +383,41 @@ useEffect(() => {
                     </div>
                     <div className="input-group">
                         <label>Year</label>
-                        <input type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value))} />
+                        <input type="number" value={year}  onWheel={preventWheelChange} onChange={(e) => setYear(parseInt(e.target.value))} />
                     </div>
                     <div className="input-group">
                         <label>Monthly Basic Salary (₹)</label>
                         <div className="currency-input">
                             <span>₹</span>
-                            <input type="number" value={basic} onChange={(e) => setBasic(e.target.value)} />
+                            <input type="number" value={basic}  onWheel={preventWheelChange} onChange={(e) => setBasic(e.target.value)} />
                         </div>
                     </div>
                     <div className="input-group">
                         <label>Total Worked Days</label>
-                        <input type="number" value={workedDays} onChange={(e) => setWorkedDays(e.target.value)} step="0.5" />
+                        <input type="number" value={workedDays}  onWheel={preventWheelChange} onChange={(e) => setWorkedDays(e.target.value)} step="0.5" />
                     </div>
                     <div className="input-group">
                         <label>Early Check-in (₹200)</label>
-                        <input type="number" value={earlyCount} onChange={(e) => setEarlyCount(e.target.value)} />
+                        <input type="number" value={earlyCount}  onWheel={preventWheelChange} onChange={(e) => setEarlyCount(e.target.value)} />
                     </div>
                     <div className="input-group">
                         <label>Morning Check-in (₹150)</label>
-                        <input type="number" value={morningCount} onChange={(e) => setMorningCount(e.target.value)} />
+                        <input type="number" value={morningCount}  onWheel={preventWheelChange} onChange={(e) => setMorningCount(e.target.value)} />
                     </div>
                     <div className="input-group">
                         <label>Morning Batch (₹100)</label>
-                        <input type="number" value={batchCount} onChange={(e) => setBatchCount(e.target.value)} />
+                        <input type="number" value={batchCount}  onWheel={preventWheelChange} onChange={(e) => setBatchCount(e.target.value)} />
                     </div>
                     <div className="input-group">
                         <label>Allowance (Addition ₹)</label>
-                        <input type="number" value={allowance} onChange={(e) => setAllowance(e.target.value)} className="input-added" />
+                        <input type="number" value={allowance}  onWheel={preventWheelChange} onChange={(e) => setAllowance(e.target.value)} className="input-added" />
                     </div>
                     <div className="input-group">
                         <label>Penalty (Deduction ₹)</label>
                         <input
     type="number"
     value={penalty}
+     onWheel={preventWheelChange}
     onChange={(e) => {
         setPenalty(e.target.value);
         setLastAutoFilledPenalty('');   // ← user typed → stop auto-filling
@@ -422,19 +427,19 @@ useEffect(() => {
                     </div>
                     <div className="input-group">
                         <label>Expense (Deduction ₹)</label>
-                        <input type="number" value={expense} onChange={(e) => setExpense(e.target.value)} className="input-deducted" />
+                        <input type="number" value={expense}  onWheel={preventWheelChange} onChange={(e) => setExpense(e.target.value)} className="input-deducted" />
                     </div>
                     <div className="input-group">
                         <label>Late Check-in (Days)</label>
-                        <input type="number" value={lateDays} onChange={(e) => setLateDays(e.target.value)} />
+                        <input type="number" value={lateDays}  onWheel={preventWheelChange} onChange={(e) => setLateDays(e.target.value)} />
                     </div>
                     <div className="input-group">
                         <label>Extra working Days</label>
-                        <input type="number" value={extraDays} onChange={(e) => setExtraDays(e.target.value)} />
+                        <input type="number" value={extraDays}  onWheel={preventWheelChange} onChange={(e) => setExtraDays(e.target.value)} />
                     </div>
                     <div className="input-group full-width">
                         <label>Overtime Hours (₹100/hr)</label>
-                        <input type="number" value={otHours} onChange={(e) => setOtHours(e.target.value)} />
+                        <input type="number" value={otHours}  onWheel={preventWheelChange} onChange={(e) => setOtHours(e.target.value)} />
                     </div>
 
                     {/* ── Reviews field — visible only for Gunasri, Shreesha, Vishnu ── */}
@@ -444,9 +449,10 @@ useEffect(() => {
                             <input
                                 type="number"
                                 value={reviewCount}
-                                onChange={(e) => setReviewCount(parseInt(e.target.value) || 0)}
+                                 onWheel={preventWheelChange}
+                                onChange={(e) => setReviewCount(parseInt(e.target.value) || '')}
                                 className="input-added"
-                                min="0"
+                                // min="0"
                             />
                         </div>
                     )}
