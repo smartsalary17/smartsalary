@@ -295,7 +295,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
     };
 
     const handleCocoSync = () => {
-        const syncableStatuses = new Set(['weekoff', 'absent']);
+        const syncableStatuses = new Set(['weekoff', 'absent', 'late']);
         const eligibleEmployees = tempBulk
             .filter(employee => syncableStatuses.has(employee.status?.trim().toLowerCase()))
             .map(employee => {
@@ -303,7 +303,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                 return {
                     id: employee.id,
                     name: employee.name || 'Employee',
-                    checkin: details?.checkin || '09:00'
+                    checkin: details?.checkin || ''
                 };
             });
 
@@ -312,7 +312,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
             title: 'Confirm COCO sync',
             date: selectedDate,
             employees: eligibleEmployees,
-            message: 'COCO attendance will be checked for Week Off and Absent employees.'
+            message: 'COCO attendance will be checked for Week Off, Absent, and Late employees.'
         });
     };
 
@@ -418,7 +418,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                 title: 'COCO sync complete',
                 date,
                 employees: updates.map(({ id, name }) => ({ id, name })),
-                message: `Updated ${updates.length} Week Off or Absent record${updates.length === 1 ? '' : 's'} from COCO. Review the table and click 'Save All Attendance' to save the changes.`
+                message: `Updated ${updates.length} Week Off, Late or Absent record${updates.length === 1 ? '' : 's'} from Whatsapp. Review the table and click 'Save All Attendance' to save the changes.`
             });
         } catch (e) {
             console.error('Error syncing COCO attendance data:', e);
