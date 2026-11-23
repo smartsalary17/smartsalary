@@ -154,15 +154,19 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                     if (item.id === empId) {
                         const updated = { ...item, ...fields };
                         
-                        // Clear times for non-working statuses
-                        if ('status' in fields) {
-                            const offStatuses = ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'];
-                            if (offStatuses.includes(fields.status)) {
-                                updated.time = '';
-                                updated.outTime = '';
-                                updated.workTime = '';
-                            }
-                        }
+if ('status' in fields) {
+    const offStatuses = ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'];
+    if (offStatuses.includes(fields.status)) {
+        // Off status-ku time clear pannu
+        updated.time = '';
+        updated.outTime = '';
+        updated.workTime = '';
+    } else if (!updated.time) {
+        // Absent/Weekoff-la irundhu Present/Late-ku maara - default checkin time set pannu
+        const empData = employees.find(e => e.id === empId);
+        updated.time = empData?.checkin || '09:00';
+    }
+}
                         
                         // If check-in time is being changed
                         if ('time' in fields) {
@@ -511,12 +515,7 @@ const BulkAttendanceTable = ({ onOpenReport }) => {
                                 const currentIsTime = ['present', 'late', 'half-day'].includes(emp.status);
                                 const currentIsOff = ['absent', 'weekoff', 'sick_leave', 'holiday', 'office_leave'].includes(emp.status);
 
-const isDisabled = isLocked || (
-    currentIsTime ? isOffStatus :
-    currentIsOff ? isTimeStatus :
-    false
-);
-
+                                const isDisabled = isLocked;
                                 return (
                                     <span
                                         key={st}
