@@ -536,43 +536,48 @@ const isDisabled = isLocked || (
                             })}
                         </div>
                         
-                        <div className="bulk-time-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'nowrap' }}>
-                            {/* IN Time Input */}
-                            <div className="bulk-time-field" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.1)', padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.2)' }}>
-                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>IN:</span>
-                                <input
-                                    type="time"
-                                    value={['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status) ? '' : emp.time}
-                                    className="bulk-time-input"
-                                    disabled={isLocked || emp.isBiometric || ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status)}
-                                    style={{ border: 'none', background: 'transparent', padding: 0, height: 'auto', width: '100%', color: 'var(--warning)', fontWeight: 700, cursor: isLocked || emp.isBiometric ? 'not-allowed' : 'text' }}
-                                    onChange={(e) => updateTemp(emp.id, { time: e.target.value })}
-                                />
-                            </div>
-
-                            {/* OUT Time Input */}
-                            <div className="bulk-time-field" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(245,158,11,0.1)', padding: '6px 10px', borderRadius: '10px', border: '1px solid rgba(245,158,11,0.2)' }}>
-                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>OUT:</span>
-                                <input
-                                    type="time"
-                                    value={['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status) ? '' : (emp.outTime !== '--:--' ? emp.outTime : '')}
-                                    className="bulk-time-input"
-                                    disabled={isLocked || emp.isBiometric || ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status)}
-                                    style={{ border: 'none', background: 'transparent', padding: 0, height: 'auto', width: '100%', color: 'var(--warning)', fontWeight: 700, cursor: isLocked || emp.isBiometric ? 'not-allowed' : 'text' }}
-                                    onChange={(e) => updateTemp(emp.id, { outTime: e.target.value })}
-                                />
-                            </div>
-                            {emp.workTime && emp.workTime !== '--:--' && (
-                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>
-                                    {emp.workTime} hrs
+                        <div className="bulk-time-row">
+                            <div className="bulk-time-inputs">
+                                 {/* IN Time Input */}
+                                <div className="bulk-time-field">
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>IN:</span>
+                                    <input
+                                        type="time"
+                                        value={['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status) ? '' : emp.time}
+                                        className="bulk-time-input"
+                                        disabled={isLocked || emp.isBiometric || ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status)}
+                                        style={{ border: 'none', background: 'transparent', padding: 0, height: 'auto', width: '100%', color: 'var(--warning)', fontWeight: 700, cursor: isLocked || emp.isBiometric ? 'not-allowed' : 'text' }}
+                                        onChange={(e) => updateTemp(emp.id, { time: e.target.value })}
+                                    />
                                 </div>
-                            )}
-                            {emp.isBiometric && (
-                                <span style={{ fontSize: '0.7rem', background: '#3b82f6', color: 'white', padding: '2px 6px', borderRadius: '12px' }}>Biometric</span>
-                            )}
-                            {emp.isCoco && (
-                                <span style={{ fontSize: '0.7rem', background: '#8b5cf6', color: 'white', padding: '2px 6px', borderRadius: '12px' }}>WhatsApp</span>
-                            )}
+                            
+
+                                {/* OUT Time Input */}
+                                <div className="bulk-time-field">
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>OUT:</span>
+                                    <input
+                                        type="time"
+                                        value={['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status) ? '' : (emp.outTime !== '--:--' ? emp.outTime : '')}
+                                        className="bulk-time-input"
+                                        disabled={isLocked || emp.isBiometric || ['absent', 'weekoff', 'holiday', 'sick_leave', 'office_leave'].includes(emp.status)}
+                                        style={{ border: 'none', background: 'transparent', padding: 0, height: 'auto', width: '100%', color: 'var(--warning)', fontWeight: 700, cursor: isLocked || emp.isBiometric ? 'not-allowed' : 'text' }}
+                                        onChange={(e) => updateTemp(emp.id, { outTime: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                            <div className="bulk-time-meta">
+                                {emp.workTime && emp.workTime !== '--:--' && (
+                                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--primary)' }}>
+                                        {emp.workTime} hrs
+                                    </div>
+                                )}
+                                {emp.isBiometric && (
+                                    <span style={{ fontSize: '0.7rem', background: '#3b82f6', color: 'white', padding: '2px 6px', borderRadius: '12px' }}>Biometric</span>
+                                )}
+                                {emp.isCoco && (
+                                    <span style={{ fontSize: '0.7rem', background: '#8b5cf6', color: 'white', padding: '2px 6px', borderRadius: '12px' }}>WhatsApp</span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 ))}

@@ -3905,3 +3905,50 @@ button:active {
         width: 100% !important;
     }
 }
+
+.bulk-time-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+}
+
+.bulk-time-inputs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    width: 100%;
+}
+
+.bulk-time-field {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 6px 10px;
+    box-sizing: border-box;
+    border-radius: 10px;
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    background: rgba(245, 158, 11, 0.1);
+    white-space: nowrap;
+}
+
+.bulk-time-field span {
+    flex-shrink: 0;
+}
+
+.bulk-time-field input {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+}
+
+.bulk-time-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: 0;
+}
