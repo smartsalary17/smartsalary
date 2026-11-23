@@ -99,6 +99,10 @@ const DetailItem = ({ label, value, wide = false }) => (
     </div>
 );
 
+    const preventWheelChange = (e) => {
+    e.currentTarget.blur();
+};
+
 const DocumentCard = ({
     item,
     asset,
@@ -872,7 +876,7 @@ const handleDelete = async () => {
                                 </select>
                             </FormField>
                             <FormField label="Joining date"><input type="date" value={formData.joinDate} onChange={(event) => updateForm('joinDate', event.target.value)} /></FormField>
-                            <FormField label="Basic salary (₹/month)" required error={fieldErrors.salary}><input data-field="salary" type="number" min="0" step="0.01" value={formData.salary} onChange={(event) => updateForm('salary', event.target.value)} placeholder="30000" /></FormField>
+                            <FormField label="Basic salary (₹/month)" required error={fieldErrors.salary}><input data-field="salary" type="number" min="0" step="0.01" value={formData.salary}  onWheel={preventWheelChange} onChange={(event) => updateForm('salary', event.target.value)} placeholder="30000" /></FormField>
                             <FormField label="Standard check-in" required error={fieldErrors.checkin}>
     <input data-field="checkin" type="time" value={formData.checkin} onChange={(event) => updateForm('checkin', event.target.value)} />
 </FormField>
