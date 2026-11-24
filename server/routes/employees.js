@@ -142,10 +142,11 @@ router.get('/biometric-ids', async (req, res, next) => {
                 const data = response.data.InOutPunchData || [];
 
                 data.forEach(record => {
-                    if (!seenIds.has(record.Empcode)) {
-                        seenIds.add(record.Empcode);
+                    const biometricId = String(record.Empcode || '');
+                    if (biometricId && !seenIds.has(biometricId)) {
+                        seenIds.add(biometricId);
                         uniqueBiometricIds.push({
-                            id: record.Empcode,
+                            id: biometricId,
                             name: record.Name,
                             corpId: config.corpId
                         });
@@ -269,6 +270,58 @@ router.put('/:id/assets/:type', async (req, res, next) => {
     } catch (e) { next(e); }
 });
 
+
+router.delete('/:id/assets/:type', async (req, res, next) => {
+    try {
+        const { id, type } = req.params;
+
+        if (!ASSET_TYPES.has(type)) {
+            return res.status(400).json({
+                error: 'Unsupported employee document type.'
+            });
+        }
+
+        if (!shouldUseMockStore() && !(await ensurePersistentStore())) {
+            return await respondStorageUnavailable(res);
+        }
+
+        let deletedAsset;
+
+        if (shouldUseMockStore()) {
+            const key = assetKey(id, type);
+            deletedAsset = mockStore.mockEmployeeAssets.get(key);
+
+            if (!deletedAsset) {
+                return res.status(404).json({
+                    error: 'Employee document not found.'
+                });
+            }
+
+            mockStore.mockEmployeeAssets.delete(key);
+        } else {
+            deletedAsset = await EmployeeAsset.findOneAndDelete({
+                employeeId: id,
+                type
+            });
+
+            if (!deletedAsset) {
+                return res.status(404).json({
+                    error: 'Employee document not found.'
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            message: 'Employee document removed successfully.',
+            type
+        });
+    } catch (e) {
+        next(e);
+    }
+});
+
+
 router.post('/sync/biometric', async (req, res, next) => {
     try {
         if (!shouldUseMockStore() && !(await ensurePersistentStore())) {
@@ -291,11 +344,12 @@ router.post('/sync/biometric', async (req, res, next) => {
                 const data = response.data.InOutPunchData || [];
 
                 data.forEach(record => {
-                    if (record.Empcode && !seenIds.has(record.Empcode)) {
-                        seenIds.add(record.Empcode);
+                    const biometricId = String(record.Empcode || '');
+                    if (biometricId && !seenIds.has(biometricId)) {
+                        seenIds.add(biometricId);
                         biometricEmployees.push({
-                            id: record.Empcode,
-                            name: record.Name || `Biometric Employee ${record.Empcode}`,
+                            id: biometricId,
+                            name: record.Name || `Biometric Employee ${biometricId}`,
                             role: 'Employee',
                             dept: 'Biometric',
                             salary: 0,
@@ -321,11 +375,11 @@ router.post('/sync/biometric', async (req, res, next) => {
             currentEmployees = await Employee.find().lean();
         }
 
-        const currentEmpMap = new Map(currentEmployees.map(e => [e.id, e]));
+        const currentEmpMap = new Map(currentEmployees.map(e => [String(e.id), e]));
         const mergedEmployees = [];
 
         biometricEmployees.forEach(bioEmp => {
-            const existing = currentEmpMap.get(bioEmp.id);
+            const existing = currentEmpMap.get(String(bioEmp.id));
             if (existing) {
                 // If it already exists, update name if it matches placeholder or if we want to ensure latest name, 
                 // but keep all existing role, dept, salary, checkin, weekoffs etc.
@@ -340,7 +394,7 @@ router.post('/sync/biometric', async (req, res, next) => {
 
         // Also carry over current employees who are NOT in today's biometric list (so we don't delete them!)
         currentEmployees.forEach(currEmp => {
-            if (!seenIds.has(currEmp.id)) {
+            if (!seenIds.has(String(currEmp.id))) {
                 mergedEmployees.push(currEmp);
             }
         });
@@ -407,7 +461,7 @@ router.put('/:id', async (req, res, next) => {
 
         let updatedEmployee;
         if (shouldUseMockStore()) {
-            const idx = mockStore.mockEmployees.findIndex(e => e.id === id);
+            const idx = mockStore.mockEmployees.findIndex(e => String(e.id) === String(id));
             if (idx !== -1) {
                 const updateData = { ...req.body };
                 delete updateData._id;
