@@ -3,7 +3,7 @@ const Employee = require('./models/Employee');
 const dotenv = require('dotenv');
 dotenv.config({ path: '../.env' });
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://workspaceforva_db_user:Lavanya1009@lavanya.nanx4qp.mongodb.net/salarydb?retryWrites=true&w=majority&appName=lavanya';
+const MONGO_URI = process.env.MONGO_URI ;
 
 const smartList = ['vasanth','gokul','sivasankari','rajasekaran','meena','jayamala','girija','prathap','rajesh','prabakaran','mohandass','gopinath','sarala','avinesh','sanjay'];
 const mbtList = ['arunkumar','devesh','naresh','shruthi','ragavi','vishnukumar','vishnupriya','gunasri','sanmugapriya','priyadharshini'];
