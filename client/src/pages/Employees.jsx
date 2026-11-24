@@ -168,18 +168,18 @@ const DocumentCard = ({
             {busy ? 'Uploading…' : hasFile ? 'Change' : 'Upload'}
         </label>
 
-        {hasFile && (
-            <button
-                type="button"
-                className="ed-remove-action"
-                onClick={() => onRemove(item.type)}
-                disabled={busy}
-                title={`Remove ${item.label}`}
-            >
-                <Trash2 size={16} />
-                Remove
-            </button>
-        )}
+{hasFile && (
+    <button
+        type="button"
+        className="ed-remove-action"
+        onClick={() => onRemove(item.type)}
+        disabled={busy}
+        title={`Remove ${item.label}`}
+        aria-label={`Remove ${item.label}`}
+    >
+        <Trash2 size={16} />
+    </button>
+)}
     </>
 )}
             </div>
@@ -450,30 +450,54 @@ const selectEmployee = (employeeId) => {
         if (type === 'photo') setPendingPhotoUrl(URL.createObjectURL(file));
     };
 
-    const handleDownload = async (type) => {
-        if (!selectedEmployeeId || !assetMeta[type]) return;
-        try {
-            const response = await axios.get(
-                `${API_BASE}/api/employees/${encodeURIComponent(selectedEmployeeId)}/assets/${type}`,
-                { responseType: 'blob' }
-            );
-            const downloadUrl = URL.createObjectURL(response.data);
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.download = assetMeta[type].fileName;
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            // Some browsers start reading the blob after the click handler returns.
-            // Keep it alive briefly so cross-device/mobile downloads do not fail.
-            window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 60_000);
-        } catch (error) {
-            console.error('Employee document download failed:', error);
-            setAssetError('The document could not be downloaded. Please try again.');
-        }
-    };
-const handleRemoveAsset = async (type) => {
-    if (!window.confirm(`Remove ${type === 'photo' ? 'Profile Photo' : DOCUMENT_TYPES.find(item => item.type === type)?.label}?`)) return;
+
+const handleDownload = async (type) => {
+    if (!selectedEmployeeId || !assetMeta[type]) return;
+    try {
+        const response = await axios.get(
+            `${API_BASE}/api/employees/${encodeURIComponent(selectedEmployeeId)}/assets/${type}`,
+            { responseType: 'blob' }
+        );
+
+        const originalName = assetMeta[type].fileName || '';
+        const extension = originalName.includes('.')
+            ? originalName.split('.').pop()
+            : '';
+        const documentName = DOCUMENT_TYPES.find(item => item.type === type)?.label || type;
+        const employeeName = (selectedEmployee?.name || 'Employee')
+            .trim()
+            .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
+            .replace(/\s+/g, ' ');
+        const safeDocumentName = documentName.replace(/\s+/g, '-');
+        const downloadName = `${employeeName}-${safeDocumentName}${extension ? `.${extension}` : ''}`;
+
+        const downloadUrl = URL.createObjectURL(response.data);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        link.download = downloadName;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 60000);
+    } catch (error) {
+        setAssetError('The document could not be downloaded. Please try again.');
+    }
+};
+
+
+const requestRemoveAsset = (type) => {
+    const item = DOCUMENT_TYPES.find(doc => doc.type === type);
+
+    setRemoveDocument({
+        type,
+        label: type === 'photo' ? 'Profile Photo' : item?.label || type
+    });
+};
+
+const handleRemoveAsset = async () => {
+    if (!removeDocument) return;
+
+    const { type } = removeDocument;
 
     if (pendingAssets[type]) {
         setPendingAssets(previous => {
@@ -492,10 +516,14 @@ const handleRemoveAsset = async (type) => {
             setPendingPhotoUrl('');
         }
 
+        setRemoveDocument(null);
         return;
     }
 
-    if (!selectedEmployeeId || !assetMeta[type]) return;
+    if (!selectedEmployeeId || !assetMeta[type]) {
+        setRemoveDocument(null);
+        return;
+    }
 
     try {
         setAssetError('');
@@ -505,18 +533,25 @@ const handleRemoveAsset = async (type) => {
             `${API_BASE}/api/employees/${encodeURIComponent(selectedEmployeeId)}/assets/${type}`
         );
 
-        setAssetVersion(version => version + 1);
-        
         if (type === 'photo') {
             setPhotoUrl('');
         }
+
+        setAssetVersion(version => version + 1);
+        setRemoveDocument(null);
+
+        showToast(`${removeDocument.label} removed successfully!`, 'success');
     } catch (error) {
         console.error('Employee document removal failed:', error);
-        setAssetError(error?.response?.data?.error || 'The document could not be removed.');
+
+        setAssetError(
+            error?.response?.data?.error || 'The document could not be removed.'
+        );
     } finally {
         setUploadingType('');
     }
 };
+
 
 const focusField = (field) => {
     requestAnimationFrame(() => {
@@ -673,7 +708,7 @@ const handleDelete = async () => {
                         showRequiredMark={mode === 'edit'}
                         onPick={mode === 'new' ? handleFormAssetPick : handleDirectAssetUpload}
                         onDownload={handleDownload}
-                        onRemove={handleRemoveAsset}
+                        onRemove={requestRemoveAsset}
                     />
                 ))}
             </div>
@@ -821,7 +856,7 @@ const handleDelete = async () => {
             <button
                 type="button"
                 className="ed-remove-photo-btn"
-                onClick={() => handleRemoveAsset('photo')}
+                onClick={() => requestRemoveAsset('photo')}
                 title="Remove photo"
             >
                 <X size={12} strokeWidth={3} />
@@ -1013,16 +1048,17 @@ const handleDelete = async () => {
                 </div>
             )}
 
-            <ConfirmModal
-    isOpen={!!deleteTarget}
-    title="Delete Employee?"
-    message={deleteTarget ? `Are you sure you want to delete ${deleteTarget.name}? Their Name Mapping and uploaded assets will also be deleted. Attendance and penalty history will remain unchanged.` : ''}
-    confirmText="Delete"
+<ConfirmModal
+    isOpen={!!removeDocument}
+    title="Remove Document?"
+    message={removeDocument ? `Are you sure you want to remove ${removeDocument.label}? This action cannot be undone.` : ''}
+    confirmText="Remove"
     cancelText="Cancel"
     danger={true}
-    onConfirm={handleDelete}
-    onCancel={() => setDeleteTarget(null)}
+    onConfirm={handleRemoveAsset}
+    onCancel={() => setRemoveDocument(null)}
 />
+
         </div>
     );
 };

@@ -3964,3 +3964,79 @@ input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
 }
+
+/* Employee document action buttons */
+.employee-document .ed-document-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.employee-document .ed-icon-action,
+.employee-document .ed-remove-action {
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.employee-document .ed-icon-action {
+    color: #475569;
+    background: #fff;
+    border: 1px solid #dbe2ea;
+}
+
+.employee-document .ed-icon-action:hover {
+    color: var(--ed-accent);
+    background: #f5f6ff;
+    border-color: #a5b4fc;
+}
+
+.employee-document .ed-upload-action {
+    min-height: 36px;
+    padding: 0 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    border: 1px solid #c7d2fe;
+    border-radius: 9px;
+    color: var(--ed-accent);
+    background: #eef2ff;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.employee-document .ed-upload-action:hover {
+    background: #e0e7ff;
+    border-color: #a5b4fc;
+}
+
+.employee-document .ed-remove-action {
+    color: #dc2626;
+    background: #fff;
+    border: 1px solid #fecaca;
+}
+
+.employee-document .ed-remove-action:hover {
+    color: #b91c1c;
+    background: #fef2f2;
+    border-color: #fca5a5;
+}
+
+.employee-document .ed-icon-action:disabled,
+.employee-document .ed-remove-action:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
