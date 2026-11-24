@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import {
     AlertCircle,
@@ -187,6 +188,63 @@ const DocumentCard = ({
     );
 };
 
+const EmployeeCard = ({ employee, onClick, selected }) => {
+    const [photo, setPhoto] = useState('');
+
+    useEffect(() => {
+        let active = true;
+        let objectUrl = '';
+
+        const loadPhoto = async () => {
+            try {
+                const assetsResponse = await axios.get(
+                    `${API_BASE}/api/employees/${encodeURIComponent(employee.id)}/assets`
+                );
+
+                const hasPhoto = assetsResponse.data.some(asset => asset.type === 'photo');
+                if (!active || !hasPhoto) return;
+
+                const photoResponse = await axios.get(
+                    `${API_BASE}/api/employees/${encodeURIComponent(employee.id)}/assets/photo`,
+                    { responseType: 'blob' }
+                );
+
+                if (!active) return;
+
+                objectUrl = URL.createObjectURL(photoResponse.data);
+                setPhoto(objectUrl);
+            } catch {
+                // Show default employee icon when photo is unavailable.
+            }
+        };
+
+        loadPhoto();
+
+        return () => {
+            active = false;
+            if (objectUrl) URL.revokeObjectURL(objectUrl);
+        };
+    }, [employee.id]);
+
+    return (
+        <button
+            type="button"
+            className={`ed-employee-id-card ${selected ? 'selected' : ''}`}
+            onClick={onClick}
+        >
+            <div className="ed-id-card-avatar">
+                {photo ? (
+                    <img src={photo} alt={`${employee.name} profile`} />
+                ) : (
+                    <UserRound size={32} />
+                )}
+            </div>
+            <span className="ed-id-card-number">{employee.id}</span>
+            <strong>{employee.name}</strong>
+        </button>
+    );
+};
+
 const Employees = () => {
     const { showToast } = useToast();
     const { employees, saveEmployees, deleteEmployee } = useWorkforce();
@@ -211,8 +269,8 @@ const Employees = () => {
     const [fieldErrors, setFieldErrors] = useState({});
     const [removeDocument, setRemoveDocument] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
-
-    const selectedEmployee = employees.find(employee => employee.id === selectedEmployeeId);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+    const selectedEmployee = employees.find(employee => String(employee.id) === String(selectedEmployeeId));
 
     const filteredEmployees = useMemo(() => {
         const query = searchTerm.trim().toLowerCase();
@@ -222,7 +280,34 @@ const Employees = () => {
     }, [employees, searchTerm]);
 
     useEffect(() => {
-        if (selectedEmployeeId && !employees.some(employee => employee.id === selectedEmployeeId)) {
+        if (!isDetailsModalOpen && !isFormOpen) return;
+
+    const handleEscape = (event) => {
+        if (event.key === 'Escape') {
+                if (isFormOpen) {
+                    setIsFormOpen(false);
+                    setEditingEmployeeId(null);
+                    setFormError('');
+                    setShowBioDropdown(false);
+                    setPendingAssets({});
+                    setPendingPhotoUrl('');
+                    setFieldErrors({});
+                    setIsDetailsModalOpen(Boolean(editingEmployeeId && selectedEmployeeId));
+                } else {
+                    setIsDetailsModalOpen(false);
+                }
+        }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+
+    return () => {
+        window.removeEventListener('keydown', handleEscape);
+    };
+}, [isDetailsModalOpen, isFormOpen, editingEmployeeId, selectedEmployeeId]);
+
+    useEffect(() => {
+        if (selectedEmployeeId && !employees.some(employee => String(employee.id) === String(selectedEmployeeId))) {
             setSelectedEmployeeId('');
             setIsFormOpen(false);
         }
@@ -304,19 +389,13 @@ const clearEmployeeSearch = () => {
     setSearchTerm('');
 };
 
-const clearEmployeeSelection = () => {
-    setSelectedEmployeeId('');
-    setSearchTerm('');
-    setAssetError('');
-    setIsFormOpen(false);
-    setEditingEmployeeId(null);
-};
 const selectEmployee = (employeeId) => {
     setSelectedEmployeeId(employeeId);
     setSearchTerm('');
     setAssetError('');
     setIsFormOpen(false);
     setEditingEmployeeId(null);
+    setIsDetailsModalOpen(Boolean(employeeId));
 };
 
    const startAddEmployee = () => {
@@ -335,6 +414,7 @@ const selectEmployee = (employeeId) => {
     setPhotoUrl('');
     setShowBioDropdown(false);
     resetPendingAssets();
+    setIsDetailsModalOpen(false);
     setIsFormOpen(true);
 };
 
@@ -354,18 +434,25 @@ const selectEmployee = (employeeId) => {
         setFieldErrors({});
         setShowBioDropdown(false);
         resetPendingAssets();
+        setIsDetailsModalOpen(false);
         setIsFormOpen(true);
 
     };
 
-    const closeForm = () => {
-        setIsFormOpen(false);
-        setEditingEmployeeId(null);
-        setFormError('');
-        setShowBioDropdown(false);
-        resetPendingAssets();
-        setFieldErrors({});
-    };
+const closeForm = () => {
+    const wasEditing = Boolean(editingEmployeeId);
+
+    setIsFormOpen(false);
+    setEditingEmployeeId(null);
+    setFormError('');
+    setShowBioDropdown(false);
+    resetPendingAssets();
+    setFieldErrors({});
+
+    if (wasEditing) {
+        setIsDetailsModalOpen(true);
+    }
+};
 
     const toggleWeekoff = (dayIndex) => {
         setFormData(previous => ({
@@ -439,6 +526,11 @@ const selectEmployee = (employeeId) => {
             return;
         }
 
+        if (type === 'photo') {
+            if (pendingPhotoUrl) URL.revokeObjectURL(pendingPhotoUrl);
+            setPendingPhotoUrl(URL.createObjectURL(file));
+        }
+
         setPendingAssets(previous => ({ ...previous, [type]: file }));
 
         setFieldErrors(previous => {
@@ -446,8 +538,6 @@ const selectEmployee = (employeeId) => {
             delete next[type];
             return next;
         });
-
-        if (type === 'photo') setPendingPhotoUrl(URL.createObjectURL(file));
     };
 
 
@@ -466,8 +556,11 @@ const handleDownload = async (type) => {
         const documentName = DOCUMENT_TYPES.find(item => item.type === type)?.label || type;
         const employeeName = (selectedEmployee?.name || 'Employee')
             .trim()
-            .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
-            .replace(/\s+/g, ' ');
+            .replace(/[<>:"/\\|?*]/g, '')
+            .replace(/\s+/g, ' ')
+            .split('')
+            .filter(character => character.charCodeAt(0) >= 32)
+            .join('');
         const safeDocumentName = documentName.replace(/\s+/g, '-');
         const downloadName = `${employeeName}-${safeDocumentName}${extension ? `.${extension}` : ''}`;
 
@@ -479,7 +572,7 @@ const handleDownload = async (type) => {
         link.click();
         link.remove();
         window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 60000);
-    } catch (error) {
+    } catch {
         setAssetError('The document could not be downloaded. Please try again.');
     }
 };
@@ -567,31 +660,31 @@ const focusField = (field) => {
         setAssetError('');
         const errors = {};
 
-        if (!formData.name.trim()) {
+        if (!String(formData.name || '').trim()) {
             errors.name = 'Full name is required.';
         }
 
         if (formData.salary === '' || formData.salary === null) {
             errors.salary = 'Basic salary is required.';
+        } else if (!Number.isFinite(Number(formData.salary)) || Number(formData.salary) < 0) {
+            errors.salary = 'Basic salary must be zero or more.';
         }
-        if (!formData.id || !formData.id.trim()) {
+        if (!String(formData.id || '').trim()) {
             errors.id = 'Employee ID is required.';
         }
         if (!formData.checkin) {
-    errors.checkin = 'Standard check-in time is required.';
-}
-
-        if (editingEmployeeId) { 
-            DOCUMENT_TYPES.forEach(documentType => {
-                if (
-                    documentType.required &&
-                    !pendingAssets[documentType.type] &&
-                    !assetMeta[documentType.type]
-                ) {
-                    errors[documentType.type] = `${documentType.label} is required.`;
-                }
-            });
+            errors.checkin = 'Standard check-in time is required.';
         }
+
+        DOCUMENT_TYPES.forEach(documentType => {
+            if (
+                documentType.required &&
+                !pendingAssets[documentType.type] &&
+                !assetMeta[documentType.type]
+            ) {
+                errors[documentType.type] = `${documentType.label} is required.`;
+            }
+        });
 
 if (Object.keys(errors).length) {
     setFieldErrors(errors);
@@ -615,8 +708,8 @@ if (Object.keys(errors).length) {
 
         setFieldErrors({});
 
-        const employeeId = editingEmployeeId || formData.id.trim();
-        if (!editingEmployeeId && employees.some(employee => employee.id === employeeId)) {
+        const employeeId = String(editingEmployeeId || formData.id).trim();
+        if (!editingEmployeeId && employees.some(employee => String(employee.id) === employeeId)) {
             setFormError('That employee ID already exists.');
             return;
         }
@@ -675,6 +768,7 @@ const handleDelete = async () => {
         setDeleteTarget(null);
         setSelectedEmployeeId('');
         setIsFormOpen(false);
+        setIsDetailsModalOpen(false);
         showToast(`${deleteTarget.name || deleteTarget.id} deleted successfully!`, 'success');
     } catch (error) {
         console.error('Delete employee failed:', error);
@@ -787,49 +881,33 @@ const handleDelete = async () => {
         )}
     </div>
 
-    <div className="ed-employee-select-row">
-        <label className="ed-employee-select">
-            <span>Employee list</span>
-
-            <select
-                value={
-                    employees.some(employee => employee.id === selectedEmployeeId)
-                        ? selectedEmployeeId
-                        : ''
-                }
-                onChange={(event) => {
-                    selectEmployee(event.target.value);
-                }}
-            >
-                <option value="">Select an employee</option>
-
-                {employees.map(employee => (
-                    <option key={employee.id} value={employee.id}>
-                        {employee.name} · {employee.id}
-                    </option>
-                ))}
-            </select>
-        </label>
-
-        <button
-            type="button"
-            className="ed-clear-selection"
-            onClick={clearEmployeeSelection}
-            disabled={!selectedEmployeeId && !searchTerm}
-            title="Clear employee selection"
-        >
-            <X size={16} />
-            Clear
-        </button>
-    </div>
-
     <span className="ed-result-count">
         {filteredEmployees.length} of {employees.length} employees
     </span>
 </div>
+
+    <div className="ed-employee-card-grid">
+    {filteredEmployees.length ? (
+        filteredEmployees.map(employee => (
+            <EmployeeCard
+                key={employee.id}
+                employee={employee}
+                selected={selectedEmployeeId === employee.id}
+                onClick={() => selectEmployee(employee.id)}
+            />
+        ))
+    ) : (
+        <div className="ed-search-no-results">
+            <Search size={18} />
+            <span>No employees found</span>
+        </div>
+    )}
+</div>
+
             </div>
 
-            {isFormOpen ? (
+            {isFormOpen ? (() => {
+                const employeeForm = (
                 <div className="employee-document ed-edit-document">
                     <header className="ed-document-header">
                         <div>
@@ -966,8 +1044,49 @@ const handleDelete = async () => {
                         <button type="button" className="ed-primary-action" onClick={handleSave} disabled={saving}>{saving ? 'Saving employee…' : 'Save employee'}</button>
                     </footer>
                 </div>
-            ) : selectedEmployee ? (
-                <article className="employee-document">
+                );
+
+                return createPortal(
+                    <div
+                        className="ed-details-modal-overlay"
+                        onMouseDown={(event) => {
+                            if (event.target === event.currentTarget && !saving) closeForm();
+                        }}
+                    >
+                        <section className="ed-details-modal ed-details-view-modal">
+                            <button
+                                type="button"
+                                className="ed-details-modal-close"
+                                onClick={closeForm}
+                                disabled={saving}
+                                aria-label={editingEmployeeId ? 'Close employee editor' : 'Close new employee form'}
+                            >
+                                <X size={22} />
+                            </button>
+                            {employeeForm}
+                        </section>
+                    </div>,
+                    document.body
+                );
+            })() : selectedEmployee && isDetailsModalOpen ? createPortal(
+                    <div
+                        className="ed-details-modal-overlay"
+                        onMouseDown={(event) => {
+                            if (event.target === event.currentTarget) {
+                                setIsDetailsModalOpen(false);
+                            }
+                        }}
+                    >
+                        <section className="ed-details-modal ed-details-view-modal">
+                            <button
+                                type="button"
+                                className="ed-details-modal-close"
+                                onClick={() => setIsDetailsModalOpen(false)}
+                                aria-label="Close employee details"
+                            >
+                                <X size={22} />
+                            </button>
+                     <article className="employee-document">
                     <header className="ed-profile-header">
                         <div className="ed-profile-identity">
                             <div className="ed-photo-viewer">
@@ -985,13 +1104,13 @@ const handleDelete = async () => {
                         <div className="ed-header-actions">
                             <button type="button" className="ed-secondary-action" onClick={startEditEmployee}><Pencil size={16} /> Edit</button>
                             <button
-    type="button"
-    className="ed-danger-action"
-    onClick={() => setDeleteTarget(selectedEmployee)}
-    disabled={saving}
->
-    <Trash2 size={16} /> Delete
-</button>
+                                type="button"
+                                className="ed-danger-action"
+                                onClick={() => setDeleteTarget(selectedEmployee)}
+                                disabled={saving}
+                            >
+                                <Trash2 size={16} /> Delete
+                            </button>
                         </div>
                     </header>
 
@@ -1037,16 +1156,22 @@ const handleDelete = async () => {
                         {assetLoading ? <div className="ed-document-loading">Loading documents…</div> : renderDocumentCards('view')}
                     </section>
                 </article>
-            ) : (
-                <div className="card employee-empty-state">
-                    <div className="ed-empty-illustration">
-                        <div><UserRound size={36} /></div>
-                        <FileText size={28} />
-                    </div>
-                    <h2>No employee selected</h2>
-                    <p>Choose an employee from the list above to open their record, or create a new employee profile.</p>
-                </div>
-            )}
+        </section>
+    </div>
+    
+                
+            // ) : (
+            //     <div className="card employee-empty-state">
+            //         <div className="ed-empty-illustration">
+            //             <div><UserRound size={36} /></div>
+            //             <FileText size={28} />
+            //         </div>
+            //         <h2>No employee selected</h2>
+            //         <p>Choose an employee from the list above to open their record, or create a new employee profile.</p>
+            //     </div>
+            // )}
+              ,document.body
+            ) : null}
 
 <ConfirmModal
     isOpen={!!removeDocument}
@@ -1057,6 +1182,17 @@ const handleDelete = async () => {
     danger={true}
     onConfirm={handleRemoveAsset}
     onCancel={() => setRemoveDocument(null)}
+/>
+
+<ConfirmModal
+    isOpen={!!deleteTarget}
+    title="Delete Employee?"
+    message={deleteTarget ? `Are you sure you want to delete ${deleteTarget.name || deleteTarget.id}? This will remove the employee and all uploaded documents.` : ''}
+    confirmText="Delete"
+    cancelText="Cancel"
+    danger={true}
+    onConfirm={handleDelete}
+    onCancel={() => setDeleteTarget(null)}
 />
 
         </div>
