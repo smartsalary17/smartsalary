@@ -1,5 +1,5 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
-import { Upload, Loader2, Send, CheckCircle2, AlertTriangle, X, Trash2, FileText, Info, ArrowRight } from 'lucide-react';
+import { Upload, Loader2, Send, CheckCircle2, AlertTriangle, X, Trash2, FileText, Info, ArrowRight, Download } from 'lucide-react';
 import { API_BASE } from '../context/workforceShared';
 import ConfirmModal from '../components/ConfirmModal';
 import { useToast } from '../context/ToastContext'; 
@@ -99,6 +99,18 @@ const Analyzer = ({ setPage }) => {
         showToast(`${name} removed.`, 'info');
     };
 
+    const downloadFile = (file) => {
+        const blob = new Blob([file.text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    };
+
     const clearUpload = () => {
         setUploadedFiles([]);
         setResult(null);
@@ -195,49 +207,6 @@ const Analyzer = ({ setPage }) => {
                         Extract attendance and penalties effortlessly from chat logs.
                     </p>
                 </div>
-
-{hasDbData && (
-    <button
-        onClick={() => setShowClearModal(true)}
-        disabled={clearing || loading}
-        style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            padding: '0.6rem 1rem',
-            background: 'rgba(239,68,68,0.08)',
-            color: 'var(--danger)',
-            border: '1px solid rgba(239,68,68,0.2)',
-            borderRadius: '10px',
-            cursor: clearing || loading ? 'not-allowed' : 'pointer',
-            fontWeight: 600,
-            fontSize: '0.85rem',
-            whiteSpace: 'nowrap',
-            opacity: clearing || loading ? 0.6 : 1,
-            transition: 'all 0.2s ease',
-            width: 'auto',
-            flexShrink: 0
-        }}
-        onMouseEnter={e => {
-            if (!clearing && !loading) {
-                e.currentTarget.style.background = 'rgba(239,68,68,0.15)';
-                e.currentTarget.style.borderColor = 'var(--danger)';
-            }
-        }}
-        onMouseLeave={e => {
-            e.currentTarget.style.background = 'rgba(239,68,68,0.08)';
-            e.currentTarget.style.borderColor = 'rgba(239,68,68,0.2)';
-        }}
-    >
-        {clearing
-            ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} />
-            : <Trash2 size={15} />
-        }
-        Delete DB Data
-    </button>
-)}
-
             </div>
 
             {/* Main Card */}
@@ -391,6 +360,28 @@ const Analyzer = ({ setPage }) => {
                         </div>
                     </div>
 
+                    <button
+                        onClick={() => downloadFile(file)}
+                        title={`Download ${file.name}`}
+                        aria-label={`Download ${file.name}`}
+                        style={{
+                            width: '36px',
+                            height: '36px',
+                            flexShrink: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            background: 'rgba(59,130,246,0.08)',
+                            border: '1px solid rgba(59,130,246,0.18)',
+                            borderRadius: '10px',
+                            color: 'var(--primary)',
+                            cursor: 'pointer',
+                            padding: 0
+                        }}
+                    >
+                        <Download size={17} />
+                    </button>
+
 <button
     onClick={() => setConfirmAction({
         isOpen: true, 
@@ -514,15 +505,17 @@ const Analyzer = ({ setPage }) => {
 
                 {/* Footer Action Bar */}
                 <div style={{ padding: '1.5rem 2rem', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                    {(uploadedFiles.length > 0 || text) && (
+                    {(hasDbData || uploadedFiles.length > 0 || text) && (
                         <button 
-                            onClick={() => setConfirmAction({
-                                isOpen: true, title: 'Clear All Data?', message: 'Are you sure you want to clear all files and text?', confirmText: 'Yes, Clear',
-                                onConfirm: () => { clearAll(); setConfirmAction(prev => ({ ...prev, isOpen: false })); }
-                            })}
-                            style={{ padding: '0.8rem 1.5rem', background: 'transparent', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', fontWeight: 600 }}
+                            onClick={() => setShowClearModal(true)}
+                            disabled={clearing || loading}
+                            style={{ padding: '0.8rem 1.5rem', background: 'transparent', color: 'var(--danger)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', cursor: clearing || loading ? 'not-allowed' : 'pointer', fontWeight: 600, opacity: clearing || loading ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: '8px' }}
                         >
-                            Clear All
+                            {clearing
+                                ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                                : <Trash2 size={18} />
+                            }
+                            Clear
                         </button>
                     )}
                     <button 
@@ -547,7 +540,7 @@ const Analyzer = ({ setPage }) => {
             <ConfirmModal
                 isOpen={showClearModal}
                 title="Delete Data?"
-                message="Are you sure? This will delete ALL WhatsApp analyzed Attendance AND Penalty data from the database. Biometric data will NOT be affected."
+                message="This will delete all WhatsApp-analyzed attendance and penalty data from the database (biometric data is not affected) and clear the saved files and text on this page. Continue?"
                 confirmText="Yes, Delete Data"
                 onConfirm={() => {
                     setShowClearModal(false);
