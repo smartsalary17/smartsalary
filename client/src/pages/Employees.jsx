@@ -314,6 +314,43 @@ const Employees = () => {
     }, [employees, selectedEmployeeId]);
 
     useEffect(() => {
+    if (!isDetailsModalOpen || isFormOpen || !selectedEmployeeId) return;
+
+    const handleEmployeeNavigation = (event) => {
+        if (event.altKey || event.ctrlKey || event.metaKey) return;
+
+        const target = event.target;
+        if (
+            target instanceof HTMLElement &&
+            (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+        ) return;
+
+        if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) return;
+
+        const currentIndex = employees.findIndex(
+            employee => String(employee.id) === String(selectedEmployeeId)
+        );
+
+        if (currentIndex === -1) return;
+
+        const nextIndex = event.key === 'ArrowRight'
+            ? currentIndex + 1
+            : currentIndex - 1;
+
+        if (nextIndex < 0 || nextIndex >= employees.length) return;
+
+        event.preventDefault();
+        setSelectedEmployeeId(employees[nextIndex].id);
+    };
+
+    window.addEventListener('keydown', handleEmployeeNavigation);
+
+    return () => {
+        window.removeEventListener('keydown', handleEmployeeNavigation);
+    };
+}, [employees, isDetailsModalOpen, isFormOpen, selectedEmployeeId]);
+
+    useEffect(() => {
         let isActive = true;
         let objectUrl = '';
 
