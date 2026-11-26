@@ -360,7 +360,7 @@ const Analyzer = ({ setPage }) => {
                         </div>
                     </div>
 
-                    <button
+                    {/* <button
                         onClick={() => downloadFile(file)}
                         title={`Download ${file.name}`}
                         aria-label={`Download ${file.name}`}
@@ -380,7 +380,7 @@ const Analyzer = ({ setPage }) => {
                         }}
                     >
                         <Download size={17} />
-                    </button>
+                    </button> */}
 
 <button
     onClick={() => setConfirmAction({
